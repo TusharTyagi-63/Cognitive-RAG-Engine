@@ -27,5 +27,5 @@ COPY alembic/ ./alembic/
 # Expose the FastAPI port
 EXPOSE 8000
 
-# Run Alembic migrations and then start the Uvicorn server
-CMD ["sh", "-c", "alembic upgrade head && uvicorn backend.app.main:app --host 0.0.0.0 --port 8000"]
+# Run Alembic migrations and then start the Uvicorn server programmatically
+CMD ["sh", "-c", "alembic upgrade head && python -m backend.app.main"]

@@ -254,10 +254,12 @@ app: FastAPI = create_application()
 if __name__ == "__main__":
     import uvicorn
 
+    import os
+    port = int(os.environ.get("PORT", 8000))
     uvicorn.run(
         "backend.app.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=port,
         reload=settings.DEBUG,
         log_config=None,  # Disable uvicorn's default logging; we use our own
     )
