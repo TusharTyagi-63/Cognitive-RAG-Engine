@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+let baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+if (baseUrl.includes('onrender.com') && baseUrl.startsWith('http://')) {
+  baseUrl = baseUrl.replace('http://', 'https://');
+}
 
 export const api = axios.create({
   baseURL: `${baseUrl}/api/v1`,
