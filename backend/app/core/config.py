@@ -77,7 +77,11 @@ class Settings(BaseSettings):
     # API
     # --------------------------------------------------------------------------
     API_V1_PREFIX: str = "/api/v1"
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+    ALLOWED_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://cognitive-rag-engine-1.onrender.com",
+    ]
 
     # --------------------------------------------------------------------------
     # Database — individual fields (used to build the connection URL)
