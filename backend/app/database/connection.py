@@ -59,6 +59,23 @@ def _build_engine() -> AsyncEngine:
         },
     )
 
+    connect_kwargs: dict = {
+        # asyncpg-specific: command_timeout prevents long-running queries
+        # from blocking the event loop indefinitely.
+        "command_timeout": 60,
+        "server_settings": {
+            "application_name": settings.APP_NAME,
+        },
+    }
+
+    # Supabase and most cloud Postgres providers require SSL
+    if settings.is_production:
+        import ssl as _ssl
+        ssl_ctx = _ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = _ssl.CERT_NONE
+        connect_kwargs["ssl"] = ssl_ctx
+
     return create_async_engine(
         url=settings.DATABASE_URL,
         echo=settings.DEBUG,                    # SQL statement logging
@@ -67,14 +84,7 @@ def _build_engine() -> AsyncEngine:
         pool_timeout=settings.DB_POOL_TIMEOUT,
         pool_pre_ping=True,
         pool_recycle=3600,                      # Recycle connections hourly
-        connect_args={
-            # asyncpg-specific: command_timeout prevents long-running queries
-            # from blocking the event loop indefinitely.
-            "command_timeout": 60,
-            "server_settings": {
-                "application_name": settings.APP_NAME,
-            },
-        },
+        connect_args=connect_kwargs,
     )
 
 
