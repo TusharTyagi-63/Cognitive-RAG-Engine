@@ -20,44 +20,18 @@ logger = logging.getLogger(__name__)
 
 
 class RerankerService:
-    _model = None
-
-    @classmethod
-    def get_model(cls):
-        """Returns the singleton cross-encoder model (lazy-loaded)."""
-        if cls._model is None:
-            from sentence_transformers import CrossEncoder
-            logger.info("Loading cross-encoder re-ranker model...")
-            cls._model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2", max_length=512)
-            logger.info("Re-ranker model loaded.")
-        return cls._model
 
     @classmethod
     def rerank(cls, query: str, results: List[Dict[str, Any]], top_n: int = 5) -> List[Dict[str, Any]]:
         """
-        Re-ranks retrieval results using a cross-encoder model.
-
-        Args:
-            query:   The user's search query.
-            results: List of retrieval results from hybrid/vector search.
-            top_n:   Number of top results to return after re-ranking.
-
-        Returns:
-            A filtered, re-ranked list of results sorted by cross-encoder score.
+        Re-ranks retrieval results by their existing vector similarity score.
+        (Cross-encoder reranking disabled to fit within free-tier memory limits.)
         """
         if not results:
             return results
 
         try:
-            model = cls.get_model()
-            pairs = [(query, r["text"]) for r in results]
-            scores = model.predict(pairs)
-
-            # Attach scores and sort
-            for i, result in enumerate(results):
-                result["rerank_score"] = float(scores[i])
-
-            reranked = sorted(results, key=lambda x: x["rerank_score"], reverse=True)
+            reranked = sorted(results, key=lambda x: x.get("score", 0), reverse=True)
             return reranked[:top_n]
         except Exception as e:
             logger.error(f"Re-ranking failed, returning original results: {e}")

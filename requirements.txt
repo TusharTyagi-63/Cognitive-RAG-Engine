@@ -57,8 +57,8 @@ langchain-text-splitters==0.3.3  # Advanced text splitting
 # ------------------------------------------------------------------------------
 # Vector Database & Embeddings
 # ------------------------------------------------------------------------------
-qdrant-client==1.12.1            # Local vector database
-sentence-transformers==3.3.1     # Local embedding models + cross-encoder re-ranker
+qdrant-client==1.12.1            # Qdrant vector database client
+fastembed==0.4.2                 # Lightweight ONNX-based embeddings (replaces torch+sentence-transformers)
 rank-bm25==0.2.2                 # BM25 sparse retrieval for hybrid search
 
 # ------------------------------------------------------------------------------

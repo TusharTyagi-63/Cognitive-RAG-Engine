@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue, MatchAny
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 
 from backend.app.core.config import settings
 
@@ -20,11 +20,10 @@ class VectorDBService:
     _model = None
 
     @classmethod
-    def get_model(cls) -> SentenceTransformer:
-        """Returns the singleton embedding model."""
+    def get_model(cls) -> TextEmbedding:
+        """Returns the singleton embedding model (ONNX-based, low RAM)."""
         if cls._model is None:
-            # all-MiniLM-L6-v2 is fast and produces 384-dimensional vectors
-            cls._model = SentenceTransformer("all-MiniLM-L6-v2")
+            cls._model = TextEmbedding("BAAI/bge-small-en-v1.5")
         return cls._model
 
     @classmethod
@@ -57,8 +56,8 @@ class VectorDBService:
         client = cls.get_client()
         model = cls.get_model()
         
-        # Embed the chunks
-        embeddings = model.encode(chunks)
+        # Embed the chunks — fastembed returns a generator, convert to list
+        embeddings = list(model.embed(chunks))
         
         points = []
         for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
@@ -97,7 +96,7 @@ class VectorDBService:
         client = cls.get_client()
         model = cls.get_model()
         
-        query_vector = model.encode([query])[0]
+        query_vector = list(model.embed([query]))[0]
         
         must_conditions = [
             FieldCondition(key="user_id", match=MatchValue(value=str(user_id)))
