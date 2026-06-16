@@ -1,0 +1,64 @@
+# ==============================================================================
+# Git Ignore — Cognitive RAG Engine
+# ==============================================================================
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+.pyright/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Docker volumes / data
+postgres_data/
+chroma_data/
+
+# Alembic (generated migrations are committed, but not the compiled cache)
+alembic/versions/__pycache__/
+
+# Node / Frontend (future)
+node_modules/
+.next/
+dist/

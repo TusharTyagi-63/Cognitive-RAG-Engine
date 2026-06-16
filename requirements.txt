@@ -1,0 +1,76 @@
+# ==============================================================================
+# Cognitive RAG Engine — Python Dependencies
+# Pinned for reproducibility. Update with: pip-compile requirements.in
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Web Framework
+# ------------------------------------------------------------------------------
+fastapi==0.115.5
+uvicorn[standard]==0.32.1        # ASGI server with uvloop + httptools
+python-multipart==0.0.12         # Required for form/file uploads in FastAPI
+
+# ------------------------------------------------------------------------------
+# Configuration & Environment
+# ------------------------------------------------------------------------------
+pydantic[email]==2.10.3                 # Data validation (FastAPI dependency)
+pydantic-settings==2.6.1         # BaseSettings for env-var management
+python-dotenv==1.0.1             # Loads .env files
+
+# ------------------------------------------------------------------------------
+# Database
+# ------------------------------------------------------------------------------
+sqlalchemy==2.0.36               # ORM — async-capable
+asyncpg==0.30.0                  # Async PostgreSQL driver
+greenlet==3.1.1                  # Required by SQLAlchemy async on Python 3.13+
+alembic==1.14.0                  # Database migrations
+
+# ------------------------------------------------------------------------------
+# Security (JWT — wired now, fully used in a later phase)
+# ------------------------------------------------------------------------------
+python-jose[cryptography]==3.3.0 # JWT encode/decode
+passlib[bcrypt]==1.7.4           # Password hashing
+bcrypt==4.2.1
+
+# ------------------------------------------------------------------------------
+# HTTP Client (for internal service calls)
+# ------------------------------------------------------------------------------
+httpx==0.28.1
+
+# ------------------------------------------------------------------------------
+# Logging
+# ------------------------------------------------------------------------------
+python-json-logger==3.2.1        # Structured JSON log formatter
+
+# ------------------------------------------------------------------------------
+# Utilities
+# ------------------------------------------------------------------------------
+python-dateutil==2.9.0.post0
+# uuid is part of Python 3 stdlib — no separate package needed
+
+# ------------------------------------------------------------------------------
+# Parsing & Chunking
+# ------------------------------------------------------------------------------
+pymupdf==1.25.1                  # Fast PDF parsing
+langchain-text-splitters==0.3.3  # Advanced text splitting
+
+# ------------------------------------------------------------------------------
+# Vector Database & Embeddings
+# ------------------------------------------------------------------------------
+qdrant-client==1.12.1            # Local vector database
+sentence-transformers==3.3.1     # Local embedding models + cross-encoder re-ranker
+rank-bm25==0.2.2                 # BM25 sparse retrieval for hybrid search
+
+# ------------------------------------------------------------------------------
+# LLM Provider
+# ------------------------------------------------------------------------------
+openai==1.55.3                   # Universal LLM client wrapper
+
+# ------------------------------------------------------------------------------
+# Development / Testing (install with: pip install -r requirements-dev.txt)
+# ------------------------------------------------------------------------------
+# See requirements-dev.txt
+psycopg2-binary==2.9.10
+pytest==8.3.4
+pytest-asyncio==0.24.0
+aiosqlite==0.20.0
