@@ -31,7 +31,10 @@ class VectorDBService:
     def get_client(cls) -> QdrantClient:
         """Returns a singleton QdrantClient connected to the local persist directory."""
         if cls._client is None:
-            cls._client = QdrantClient(host=settings.QDRANT_HOST, port=settings.QDRANT_PORT)
+            if settings.QDRANT_API_KEY:
+                cls._client = QdrantClient(url=settings.QDRANT_HOST, api_key=settings.QDRANT_API_KEY)
+            else:
+                cls._client = QdrantClient(host=settings.QDRANT_HOST, port=settings.QDRANT_PORT)
             
             # Ensure collection exists
             collections = cls._client.get_collections().collections

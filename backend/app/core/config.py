@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     QDRANT_COLLECTION_NAME: str = "rag_documents"
     QDRANT_HOST: str = "qdrant"
     QDRANT_PORT: int = 6333
+    QDRANT_API_KEY: str | None = None
 
     # LLM Settings
     OPENAI_API_KEY: str = "dummy_key_for_now" # Should be set in .env
