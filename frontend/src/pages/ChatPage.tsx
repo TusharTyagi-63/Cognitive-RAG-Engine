@@ -5,9 +5,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { api } from '../api/client';
+import { api, baseUrl } from '../api/client';
 
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = `${baseUrl}/api/v1`;
 
 // Custom component for syntax highlighting with copy button
 const CodeBlock = ({ inline, className, children, ...props }: any) => {

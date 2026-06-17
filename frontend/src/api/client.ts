@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-let baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+export let baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 if (baseUrl.includes('onrender.com') && baseUrl.startsWith('http://')) {
   baseUrl = baseUrl.replace('http://', 'https://');
 }

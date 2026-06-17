@@ -12,10 +12,9 @@ async def check():
             port=6543,
             ssl="require",
             timeout=5.0,
-            statement_cache_size=0,
-            prepared_statement_cache_size=0
+            statement_cache_size=0
         )
-        print("Connected!")
+        print("Connected with statement_cache_size=0!")
         await conn.close()
     except Exception as e:
         print(f"Failed to connect: {e}")
