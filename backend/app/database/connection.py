@@ -66,6 +66,9 @@ def _build_engine() -> AsyncEngine:
         "server_settings": {
             "application_name": settings.APP_NAME,
         },
+        # Required for Supabase PgBouncer / Transaction Pooler compatibility
+        "statement_cache_size": 0,
+        "prepared_statement_cache_size": 0,
     }
 
     # Supabase and most cloud Postgres providers require SSL
