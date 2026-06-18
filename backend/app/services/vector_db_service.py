@@ -32,7 +32,7 @@ class VectorDBService:
         if cls._client is None:
             if settings.QDRANT_API_KEY:
                 cls._client = QdrantClient(url=settings.QDRANT_HOST, api_key=settings.QDRANT_API_KEY)
-            elif settings.QDRANT_HOST in ["localhost", "127.0.0.1"] and settings.ENVIRONMENT == "production":
+            elif settings.QDRANT_HOST in ["localhost", "127.0.0.1"] and settings.is_production:
                 # Render free tier: fallback to local disk storage
                 cls._client = QdrantClient(path="./qdrant_data")
             else:
