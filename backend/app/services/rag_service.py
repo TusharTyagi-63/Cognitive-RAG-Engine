@@ -66,9 +66,8 @@ Format your response using clean, readable Markdown."""
             results = VectorDBService.get_all_chunks(user_id, limit=40, document_ids=document_ids)
             system_msg = cls.SUMMARY_SYSTEM_PROMPT
         else:
-            # Hybrid search: dense vectors + BM25, fused with RRF, then re-ranked
-            candidates = VectorDBService.hybrid_search(question, user_id, top_k=10, document_ids=document_ids)
-            results = RerankerService.rerank(question, candidates, top_n=5)
+            # Replaced heavy BM25 hybrid search and cross-encoder re-ranking with fast dense search
+            results = VectorDBService.search_similar(question, user_id, top_k=5, document_ids=document_ids)
             system_msg = cls.SYSTEM_PROMPT
 
         # Format Context
@@ -120,8 +119,8 @@ Format your response using clean, readable Markdown."""
             results = VectorDBService.get_all_chunks(user_id, limit=40, document_ids=document_ids)
             system_msg = cls.SUMMARY_SYSTEM_PROMPT
         else:
-            candidates = VectorDBService.hybrid_search(question, user_id, top_k=10, document_ids=document_ids)
-            results = RerankerService.rerank(question, candidates, top_n=5)
+            # Replaced heavy BM25 hybrid search and cross-encoder re-ranking with fast dense search
+            results = VectorDBService.search_similar(question, user_id, top_k=5, document_ids=document_ids)
             system_msg = cls.SYSTEM_PROMPT
 
         if not results:
