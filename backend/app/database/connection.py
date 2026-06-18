@@ -83,9 +83,9 @@ def _build_engine() -> AsyncEngine:
         echo=settings.DEBUG,                    # SQL statement logging
         pool_size=settings.DB_POOL_SIZE,
         max_overflow=settings.DB_MAX_OVERFLOW,
-        pool_timeout=settings.DB_POOL_TIMEOUT,
+        pool_timeout=30,
         pool_pre_ping=True,
-        pool_recycle=3600,                      # Recycle connections hourly
+        pool_recycle=1800,
         connect_args=connect_kwargs,
     )
 

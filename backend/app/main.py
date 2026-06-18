@@ -37,6 +37,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
+import asyncio
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -102,6 +103,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             "pool_size": settings.DB_POOL_SIZE,
         },
     )
+
+    # Preload models in background threads to avoid deadlocking the async event loop on the first request
+    try:
+        from backend.app.services.vector_db_service import VectorDBService
+        from backend.app.services.reranker_service import RerankerService
+        logger.info("Preloading embedding model...")
+        await asyncio.to_thread(VectorDBService.get_model)
+        logger.info("Preloading reranking model...")
+        await asyncio.to_thread(RerankerService.get_model)
+        logger.info("Models loaded successfully.")
+    except Exception as e:
+        logger.error(f"Failed to preload models: {e}")
 
     yield  # ← Application is live and serving requests here
 
