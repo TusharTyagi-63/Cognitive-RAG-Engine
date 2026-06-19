@@ -110,7 +110,7 @@ async def health_check() -> dict:
         "Health check completed",
         extra={
             "status": overall_status.value,
-            "database": db_status.value,
+            "database": db_status.value if hasattr(db_status, "value") else db_status,
             "uptime_seconds": health_data.uptime_seconds,
         },
     )
