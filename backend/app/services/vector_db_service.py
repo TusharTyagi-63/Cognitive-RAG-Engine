@@ -23,7 +23,7 @@ class VectorDBService:
     def get_model(cls) -> TextEmbedding:
         """Returns the singleton embedding model (ONNX-based, low RAM)."""
         if cls._model is None:
-            cls._model = TextEmbedding("BAAI/bge-small-en-v1.5")
+            cls._model = TextEmbedding("BAAI/bge-small-en-v1.5", threads=1)
         return cls._model
 
     @classmethod
@@ -64,7 +64,8 @@ class VectorDBService:
         model = cls.get_model()
         
         # Embed the chunks — fastembed returns a generator, convert to list
-        embeddings = list(model.embed(chunks))
+        # Limit batch_size to 16 to save memory on Render Free Tier
+        embeddings = list(model.embed(chunks, batch_size=16))
         
         points = []
         for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):

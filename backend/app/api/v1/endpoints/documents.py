@@ -108,14 +108,15 @@ async def process_document(
     from backend.app.services.chunking_service import ChunkingService
     from backend.app.services.vector_db_service import VectorDBService
     
+    import asyncio
     # 3. Extract text
-    text = ParsingService.extract_text(file_path, doc.content_type)
+    text = await asyncio.to_thread(ParsingService.extract_text, file_path, doc.content_type)
     
     # 4. Chunk text
-    chunks = ChunkingService.chunk_text(text)
+    chunks = await asyncio.to_thread(ChunkingService.chunk_text, text)
     
     # 5. Store in Vector DB
-    VectorDBService.add_chunks(doc.id, current_user.id, chunks)
+    await asyncio.to_thread(VectorDBService.add_chunks, doc.id, current_user.id, chunks)
     
     return success_response(
         message=f"Successfully processed {len(chunks)} chunks into the vector database."
