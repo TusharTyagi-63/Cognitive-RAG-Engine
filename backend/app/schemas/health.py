@@ -47,7 +47,7 @@ class HealthDataSchema(AppBaseModel):
     environment : Current runtime environment (development/staging/production).
     """
     status: ServiceStatus
-    database: DatabaseStatus
+    database: str
     version: str
     environment: str
     uptime_seconds: Optional[float] = None

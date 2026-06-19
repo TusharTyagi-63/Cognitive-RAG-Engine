@@ -92,7 +92,7 @@ async def health_check() -> dict:
             "Health check: database connection failed",
             extra={"error": str(exc)},
         )
-        db_status = DatabaseStatus.UNREACHABLE
+        db_status = f"unreachable: {str(exc)}"
         overall_status = ServiceStatus.DEGRADED
 
     # ------------------------------------------------------------------
