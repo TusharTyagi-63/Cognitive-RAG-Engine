@@ -110,8 +110,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         from backend.app.services.reranker_service import RerankerService
         logger.info("Preloading embedding model...")
         await asyncio.to_thread(VectorDBService.get_model)
-        logger.info("Preloading reranking model...")
-        await asyncio.to_thread(RerankerService.get_model)
         logger.info("Models loaded successfully.")
     except Exception as e:
         logger.error(f"Failed to preload models: {e}")
