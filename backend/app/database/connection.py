@@ -69,6 +69,7 @@ def _build_engine() -> AsyncEngine:
         # Required for Supabase PgBouncer / Transaction Pooler compatibility
         "statement_cache_size": 0,
         "prepared_statement_cache_size": 0,
+        "prepared_statement_name_func": lambda: f"__asyncpg_{__import__('uuid').uuid4()}__",
     }
 
     # Supabase and most cloud Postgres providers require SSL

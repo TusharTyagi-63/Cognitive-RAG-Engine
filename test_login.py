@@ -1,22 +1,16 @@
-import urllib.request
-import urllib.parse
-import json
+import requests
 
-data = urllib.parse.urlencode({
-    "username": "Tushar",
-    "password": "SecurePass123!"
-}).encode('utf-8')
-
-req = urllib.request.Request(
-    'http://localhost:8000/api/v1/auth/login',
-    data=data,
-    headers={'Content-Type': 'application/x-www-form-urlencoded'}
-)
+url = "https://cognitive-rag-engine.onrender.com/api/v1/auth/login"
 
 try:
-    response = urllib.request.urlopen(req)
-    print("Login successful:", response.read().decode('utf-8'))
-except urllib.error.HTTPError as e:
-    print(f"Error {e.code}: {e.read().decode('utf-8')}")
+    print("Testing GET /auth/login...")
+    res_get = requests.get(url, headers={"Origin": "https://cognitive-rag-engine-1.onrender.com"})
+    print("GET Status:", res_get.status_code)
+    
+    print("Testing POST /auth/login...")
+    res_post = requests.post(url, headers={"Origin": "https://cognitive-rag-engine-1.onrender.com"}, data={"username": "a", "password": "b"})
+    print("POST Status:", res_post.status_code)
+    print("POST Headers:", res_post.headers)
+    print("POST Body:", res_post.text)
 except Exception as e:
     print(f"Error: {e}")
