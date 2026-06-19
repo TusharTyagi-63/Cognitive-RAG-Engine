@@ -89,37 +89,48 @@ async def get_document_content(
         content_disposition_type="inline"
     )
 
+from fastapi import BackgroundTasks
+
+async def _process_in_background(document_id: UUID, user_id: UUID):
+    from backend.app.services.document_service import DocumentService
+    from backend.app.services.parsing_service import ParsingService
+    from backend.app.services.chunking_service import ChunkingService
+    from backend.app.services.vector_db_service import VectorDBService
+    import asyncio
+    
+    # We need a new session since the original one might be closed
+    from backend.app.database.connection import async_session_factory
+    async with async_session_factory() as session:
+        doc = await DocumentService.get_document_by_id(session, user_id, document_id)
+        file_path = DocumentService.get_document_path(doc.id)
+        
+        try:
+            text = await asyncio.to_thread(ParsingService.extract_text, file_path, doc.content_type)
+            chunks = await asyncio.to_thread(ChunkingService.chunk_text, text)
+            await asyncio.to_thread(VectorDBService.add_chunks, doc.id, user_id, chunks)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Background processing failed for document {document_id}: {e}")
+
 @router.post("/{document_id}/process", summary="Parse, chunk, and embed a document")
 async def process_document(
     document_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
-    session: Annotated[AsyncSession, Depends(get_db)]
+    session: Annotated[AsyncSession, Depends(get_db)],
+    background_tasks: BackgroundTasks
 ):
     """
     Parses the document text, splits it into chunks, and stores the embeddings in ChromaDB.
+    Runs in the background to prevent timeouts on large documents.
     """
-    # 1. Verify ownership and get metadata
-    doc = await DocumentService.get_document_by_id(session, current_user.id, document_id)
+    # 1. Verify ownership
+    await DocumentService.get_document_by_id(session, current_user.id, document_id)
     
-    # 2. Get local file path
-    file_path = DocumentService.get_document_path(doc.id)
-    
-    from backend.app.services.parsing_service import ParsingService
-    from backend.app.services.chunking_service import ChunkingService
-    from backend.app.services.vector_db_service import VectorDBService
-    
-    import asyncio
-    # 3. Extract text
-    text = await asyncio.to_thread(ParsingService.extract_text, file_path, doc.content_type)
-    
-    # 4. Chunk text
-    chunks = await asyncio.to_thread(ChunkingService.chunk_text, text)
-    
-    # 5. Store in Vector DB
-    await asyncio.to_thread(VectorDBService.add_chunks, doc.id, current_user.id, chunks)
+    # 2. Add to background tasks
+    background_tasks.add_task(_process_in_background, document_id, current_user.id)
     
     return success_response(
-        message=f"Successfully processed {len(chunks)} chunks into the vector database."
+        message="Document processing started in the background."
     )
 
 @router.delete("/{document_id}", summary="Delete a document")
