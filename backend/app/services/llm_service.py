@@ -71,9 +71,10 @@ class LLMService:
                 stream=True
             )
             async for chunk in stream:
-                delta = chunk.choices[0].delta.content
-                if delta:
-                    yield delta
+                if chunk.choices:
+                    delta = chunk.choices[0].delta.content
+                    if delta:
+                        yield delta
         except Exception as e:
             logger.error(f"LLM Streaming failed: {str(e)}")
             raise

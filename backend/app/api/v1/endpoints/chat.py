@@ -186,12 +186,14 @@ async def stream_message(
             if chunk.startswith("data: "):
                 data = chunk[6:].strip()
                 if data == "[DONE]":
-                    # Save complete response to DB
+                    # Save complete response to DB using a background session manager
                     try:
-                        ai_msg = await ChatService.add_message(session, session_id, "assistant", collected[0])
-                        await session.commit()
+                        from backend.app.database.session import DatabaseSessionManager
+                        async with DatabaseSessionManager() as background_session:
+                            ai_msg = await ChatService.add_message(background_session, session_id, "assistant", collected[0])
                     except Exception as e:
-                        pass
+                        import logging
+                        logging.getLogger(__name__).error(f"Failed to save AI message: {e}")
                     yield chunk
                     return
                 elif not data.startswith("[SOURCES]"):
