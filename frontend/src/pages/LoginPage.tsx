@@ -21,6 +21,10 @@ export function LoginPage() {
 
     // Instant client-side validation for Sign Up
     if (isSignUp) {
+      if (username.includes(' ')) {
+        setError('Username cannot contain spaces. Use underscores or hyphens instead.');
+        return;
+      }
       if (username.trim().length < 3) {
         setError('Username must be at least 3 characters long.');
         return;
