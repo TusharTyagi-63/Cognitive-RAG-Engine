@@ -175,31 +175,38 @@ async def stream_message(
 
     async def generate():
         import json
-        async for chunk in RAGService.stream_query(
-            current_user.id,
-            payload.content,
-            user_documents=doc_filenames,
-            chat_history=formatted_history,
-            document_ids=payload.document_ids
-        ):
-            # Parse the SSE chunk to extract text
-            if chunk.startswith("data: "):
-                data = chunk[6:].strip()
-                if data == "[DONE]":
-                    # Save complete response to DB using a background session manager
-                    try:
-                        from backend.app.database.session import DatabaseSessionManager
-                        async with DatabaseSessionManager() as background_session:
-                            ai_msg = await ChatService.add_message(background_session, session_id, "assistant", collected[0])
-                    except Exception as e:
-                        import logging
-                        logging.getLogger(__name__).error(f"Failed to save AI message: {e}")
-                    yield chunk
-                    return
-                elif not data.startswith("[SOURCES]"):
-                    # Accumulate the actual text (convert escaped newlines back)
-                    collected[0] += data.replace("\\n", "\n")
-            yield chunk
+        try:
+            async for chunk in RAGService.stream_query(
+                current_user.id,
+                payload.content,
+                user_documents=doc_filenames,
+                chat_history=formatted_history,
+                document_ids=payload.document_ids
+            ):
+                # Parse the SSE chunk to extract text
+                if chunk.startswith("data: "):
+                    data = chunk[6:].strip()
+                    if data == "[DONE]":
+                        # Save complete response to DB using a background session manager
+                        try:
+                            from backend.app.database.session import DatabaseSessionManager
+                            async with DatabaseSessionManager() as background_session:
+                                ai_msg = await ChatService.add_message(background_session, session_id, "assistant", collected[0])
+                        except Exception as e:
+                            import logging
+                            logging.getLogger(__name__).error(f"Failed to save AI message: {e}")
+                        yield chunk
+                        return
+                    elif not data.startswith("[SOURCES]"):
+                        # Accumulate the actual text (convert escaped newlines back)
+                        collected[0] += data.replace("\\n", "\n")
+                yield chunk
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Streaming generator crashed: {e}")
+            safe_err = str(e).replace("\n", " ")
+            yield f"data: An internal error occurred while generating the response: {safe_err}\n\n"
+            yield "data: [DONE]\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream", headers={
         "Cache-Control": "no-cache",
