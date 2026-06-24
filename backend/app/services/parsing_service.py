@@ -4,7 +4,8 @@ backend/app/services/parsing_service.py
 Extracts plain text from raw files stored on disk.
 
 Supports: PDF, DOCX, PPTX, XLSX, CSV, HTML, XML, JSON, RTF,
-          Markdown, plain text, and all common source code / config formats.
+          Images (via Gemini Vision AI), Markdown, plain text,
+          and all common source code / config formats.
 """
 import csv
 import json
@@ -20,6 +21,11 @@ _TEXT_EXTENSIONS = {
     ".txt", ".md", ".py", ".js", ".ts", ".java", ".c", ".cpp", ".go",
     ".rs", ".rb", ".php", ".sh", ".sql", ".yaml", ".yml", ".toml",
     ".ini", ".cfg", ".log",
+}
+
+# Image extensions — parsed via Gemini Vision AI
+_IMAGE_EXTENSIONS = {
+    ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tiff", ".tif", ".svg",
 }
 
 
@@ -75,6 +81,10 @@ class ParsingService:
             # ── RTF ──────────────────────────────────────────────────────
             if ext == ".rtf" or content_type == "application/rtf":
                 return ParsingService._parse_rtf(file_path)
+
+            # ── Images (Gemini Vision AI) ────────────────────────────────
+            if ext in _IMAGE_EXTENSIONS or content_type.startswith("image/"):
+                return ParsingService._parse_image(file_path)
 
             # ── Plain text / source code / config ────────────────────────
             if ext in _TEXT_EXTENSIONS or content_type.startswith("text/"):
@@ -232,3 +242,34 @@ class ParsingService:
         """Reads plain text, markdown, source code, or config files."""
         with open(file_path, mode='r', encoding='utf-8', errors='replace') as f:
             return f.read()
+
+    @staticmethod
+    def _parse_image(file_path: Path) -> str:
+        """
+        Extracts text and descriptions from an image using Google Gemini Vision.
+        This handles text extraction (OCR), diagram reading, chart analysis,
+        and general image description — far superior to traditional OCR.
+        """
+        import google.generativeai as genai
+        from PIL import Image
+        from backend.app.core.config import settings
+
+        if not settings.GEMINI_API_KEY:
+            raise BadRequestException("GEMINI_API_KEY is not configured. Cannot process images.")
+
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        model = genai.GenerativeModel('gemini-2.0-flash')
+
+        img = Image.open(file_path)
+
+        prompt = (
+            "Analyze this image thoroughly. Extract ALL text visible in the image exactly as written. "
+            "If the image contains diagrams, charts, tables, or figures, describe them in detail "
+            "including all data points, labels, and relationships. "
+            "If it's a screenshot of code, extract the code exactly. "
+            "If it's a photograph, describe what you see in detail. "
+            "Format the output as clean, readable text."
+        )
+
+        response = model.generate_content([prompt, img])
+        return response.text

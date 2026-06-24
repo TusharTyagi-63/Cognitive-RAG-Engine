@@ -48,6 +48,8 @@ class Settings(BaseSettings):
         ".txt", ".pdf", ".md", ".csv", ".docx", ".pptx", ".xlsx", ".rtf",
         # Web & Data
         ".html", ".htm", ".json", ".xml",
+        # Images
+        ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tiff", ".tif", ".svg",
         # Source Code & Config
         ".py", ".js", ".ts", ".java", ".c", ".cpp", ".go", ".rs", ".rb",
         ".php", ".sh", ".sql", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".log",

@@ -58,6 +58,7 @@ openpyxl==3.1.5                  # Microsoft Excel (.xlsx) parsing
 beautifulsoup4==4.12.3           # HTML/XML text extraction
 lxml==5.3.0                      # Fast HTML/XML parser backend
 striprtf==0.0.26                 # RTF text extraction
+Pillow>=10.0.0                   # Image loading for Gemini Vision
 langchain-text-splitters==0.3.3  # Advanced text splitting
 
 # ------------------------------------------------------------------------------
