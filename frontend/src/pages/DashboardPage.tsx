@@ -41,12 +41,14 @@ export function DashboardPage() {
     }
   };
 
-  const handleOpenDocument = async (docId: string) => {
+  const handleOpenDocument = (docId: string) => {
     try {
-      const res = await api.get(`/documents/${docId}/content`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(res.data);
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error("No auth token");
+      
+      // Use native browser navigation, appending the token so the backend can authenticate it
+      const url = `${api.defaults.baseURL}/documents/${docId}/content?token=${token}`;
       window.open(url, '_blank');
-      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
     } catch (err) {
       console.error('Failed to open document', err);
       alert('Failed to open document. Check console.');
