@@ -26,12 +26,12 @@ class VectorDBService:
         
         genai.configure(api_key=settings.GEMINI_API_KEY)
         
-        # Gemini expects a single string or a list of strings
-        # "models/text-embedding-004" is the latest embedding model, size 768
+        # "models/gemini-embedding-2" is the correct API model name for this SDK version
         result = genai.embed_content(
-            model="models/text-embedding-004",
+            model="models/gemini-embedding-2",
             content=texts,
-            task_type="retrieval_document" if isinstance(texts, list) else "retrieval_query"
+            task_type="retrieval_document" if isinstance(texts, list) else "retrieval_query",
+            output_dimensionality=768
         )
         
         # embed_content returns a dict with 'embedding' key
