@@ -17,26 +17,39 @@ export function Layout() {
   const [sessions, setSessions] = useState<Session[]>([]);
 
   useEffect(() => {
-    api.get('/chat/sessions').then(res => setSessions(res.data?.data || [])).catch(console.error);
+    // Only refetch when we actually navigate to a new session (not on every route change)
+    if (location.pathname.startsWith('/chat/') && location.pathname !== '/chat/new') {
+      // A new session was just created, refresh the list
+      api.get('/chat/sessions').then(res => setSessions(res.data?.data || [])).catch(console.error);
+    }
   }, [location.pathname]);
+
+  // Initial load
+  useEffect(() => {
+    api.get('/chat/sessions').then(res => setSessions(res.data?.data || [])).catch(console.error);
+  }, []);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  const handleDeleteSession = async (e: React.MouseEvent, id: string) => {
+  const handleDeleteSession = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
-    try {
-      await api.delete(`/chat/sessions/${id}`);
-      setSessions(sessions.filter(s => s.id !== id));
-      if (location.pathname === `/chat/${id}`) {
-        navigate('/chat/new');
-      }
-    } catch (err) {
-      console.error('Delete session failed', err);
+
+    // Optimistic UI: update immediately, then sync with server
+    const previousSessions = sessions;
+    setSessions(sessions.filter(s => s.id !== id));
+    if (location.pathname === `/chat/${id}`) {
+      navigate('/chat/new');
     }
+
+    // Fire API call in the background; rollback on failure
+    api.delete(`/chat/sessions/${id}`).catch(err => {
+      console.error('Delete session failed, rolling back', err);
+      setSessions(previousSessions);
+    });
   };
 
   return (

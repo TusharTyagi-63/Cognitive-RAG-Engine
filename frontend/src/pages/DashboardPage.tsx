@@ -31,14 +31,20 @@ export function DashboardPage() {
     }
   };
 
-  const handleDeleteDocument = async (docId: string) => {
-    try {
-      await api.delete(`/documents/${docId}`);
-      await fetchDocuments();
-    } catch (err) {
+  const handleDeleteDocument = (docId: string) => {
+    // 1. Snapshot current list for rollback
+    const previousDocuments = documents;
+
+    // 2. Optimistically remove from UI immediately
+    setDocuments(prev => prev.filter(doc => doc.id !== docId));
+
+    // 3. Fire API call in background — no await blocks the UI
+    api.delete(`/documents/${docId}`).catch(err => {
       console.error('Delete failed', err);
-      alert('Delete failed. Check console.');
-    }
+      // 4. Rollback on failure
+      setDocuments(previousDocuments);
+      alert('Delete failed. The document has been restored.');
+    });
   };
 
   const handleOpenDocument = (docId: string) => {

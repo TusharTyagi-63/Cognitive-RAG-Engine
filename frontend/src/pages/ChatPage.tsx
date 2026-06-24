@@ -101,7 +101,10 @@ export function ChatPage() {
     const userMsg = input.trim();
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
-    setLoading(true);
+
+    // Immediately show the AI thinking (no dead loading state)
+    setStreaming(true);
+    setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
     try {
       let targetSessionId = id;
@@ -112,12 +115,6 @@ export function ChatPage() {
         const createRes = await api.post('/chat/sessions', { title });
         targetSessionId = createRes.data?.data?.id;
       }
-
-      setLoading(false);
-      setStreaming(true);
-
-      // Add an empty assistant message that we'll stream into
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
       const token = localStorage.getItem('token');
       
@@ -186,7 +183,11 @@ export function ChatPage() {
       }
     } catch (err) {
       console.error(err);
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error answering your question.' }]);
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { role: 'assistant', content: 'Sorry, I encountered an error answering your question.' };
+        return updated;
+      });
     } finally {
       setLoading(false);
       setStreaming(false);
@@ -273,14 +274,7 @@ export function ChatPage() {
             </div>
           </div>
         ))}
-        {loading && (
-          <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-            <div style={{ padding: '1rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.05)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <Loader2 className="animate-spin" size={20} color="var(--primary)" />
-              <span className="animate-pulse" style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Initializing session...</span>
-            </div>
-          </div>
-        )}
+
         <div ref={bottomRef} />
         </div>
       </div>

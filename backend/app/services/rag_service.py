@@ -8,6 +8,7 @@ Includes an Intent Router that dynamically selects the retrieval strategy:
 """
 from typing import Dict, Any, List
 from uuid import UUID
+import asyncio
 
 from backend.app.services.vector_db_service import VectorDBService
 from backend.app.services.llm_service import LLMService
@@ -62,12 +63,12 @@ Format your response using clean, readable Markdown."""
         logger.info(f"Classified intent as: {intent} for question: '{question}'")
 
         if intent == "SUMMARY":
-            # Full document retrieval path
-            results = VectorDBService.get_all_chunks(user_id, limit=40, document_ids=document_ids)
+            # Full document retrieval path — run in thread to avoid blocking event loop
+            results = await asyncio.to_thread(VectorDBService.get_all_chunks, user_id, 40, document_ids)
             system_msg = cls.SUMMARY_SYSTEM_PROMPT
         else:
-            # Replaced heavy BM25 hybrid search and cross-encoder re-ranking with fast dense search
-            results = VectorDBService.search_similar(question, user_id, top_k=5, document_ids=document_ids)
+            # Dense vector search — run in thread to avoid blocking event loop
+            results = await asyncio.to_thread(VectorDBService.search_similar, question, user_id, 5, document_ids)
             system_msg = cls.SYSTEM_PROMPT
 
         # Format Context
@@ -116,11 +117,10 @@ Format your response using clean, readable Markdown."""
         intent = cls._classify_intent(question)
 
         if intent == "SUMMARY":
-            results = VectorDBService.get_all_chunks(user_id, limit=40, document_ids=document_ids)
+            results = await asyncio.to_thread(VectorDBService.get_all_chunks, user_id, 40, document_ids)
             system_msg = cls.SUMMARY_SYSTEM_PROMPT
         else:
-            # Replaced heavy BM25 hybrid search and cross-encoder re-ranking with fast dense search
-            results = VectorDBService.search_similar(question, user_id, top_k=5, document_ids=document_ids)
+            results = await asyncio.to_thread(VectorDBService.search_similar, question, user_id, 5, document_ids)
             system_msg = cls.SYSTEM_PROMPT
 
         if not results:

@@ -110,6 +110,7 @@ class DocumentService:
         if target_path.exists():
             os.remove(target_path)
         
-        # Delete embeddings from Qdrant so deleted docs no longer appear in chat
+        # Delete embeddings from Qdrant in background thread (don't block the response)
+        import asyncio
         from backend.app.services.vector_db_service import VectorDBService
-        VectorDBService.delete_document(doc.id)
+        asyncio.get_event_loop().run_in_executor(None, VectorDBService.delete_document, doc.id)
