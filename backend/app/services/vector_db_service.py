@@ -21,10 +21,18 @@ class VectorDBService:
 
     @classmethod
     def get_model(cls) -> TextEmbedding:
-        """Returns the singleton embedding model (ONNX-based, low RAM)."""
+        """Returns the embedding model, loading it into RAM only when needed."""
         if cls._model is None:
             cls._model = TextEmbedding("BAAI/bge-small-en-v1.5", threads=1)
         return cls._model
+
+    @classmethod
+    def unload_model(cls) -> None:
+        """Frees the embedding model from RAM to prevent OOM crashes on Render."""
+        if cls._model is not None:
+            cls._model = None
+            import gc
+            gc.collect()
 
     @classmethod
     def get_client(cls) -> QdrantClient:
@@ -48,7 +56,12 @@ class VectorDBService:
             if not any(c.name == settings.QDRANT_COLLECTION_NAME for c in collections):
                 cls._client.create_collection(
                     collection_name=settings.QDRANT_COLLECTION_NAME,
-                    vectors_config=VectorParams(size=384, distance=Distance.COSINE),
+                    vectors_config=VectorParams(
+                        size=384, 
+                        distance=Distance.COSINE,
+                        on_disk=True  # Force vectors to disk to save RAM
+                    ),
+                    on_disk_payload=True  # Force payload to disk to save RAM
                 )
             
             # Ensure indices exist so delete operations don't fail
@@ -81,8 +94,8 @@ class VectorDBService:
         import asyncio
         import uuid
         
-        # Process in batches of 16
-        batch_size = 16
+        # Process in tiny batches of 4 to minimize intermediate tensor memory
+        batch_size = 4
         for i in range(0, len(chunks), batch_size):
             chunk_batch = chunks[i:i+batch_size]
             
@@ -92,6 +105,9 @@ class VectorDBService:
                 return list(model.embed(chunk_batch, batch_size=batch_size))
                 
             embeddings = await asyncio.to_thread(embed_batch)
+            
+            import gc
+            gc.collect()
 
             # 2. Prepare points
             points = []
@@ -117,6 +133,9 @@ class VectorDBService:
             
             # 4. Yield to the event loop so health checks can pass!
             await asyncio.sleep(0.1)
+            
+        # Free the model from RAM after processing the document
+        cls.unload_model()
 
     @classmethod
     def search_similar(cls, query: str, user_id: UUID, top_k: int = 5, document_ids: List[UUID] = None) -> List[Dict[str, Any]]:
@@ -156,6 +175,9 @@ class VectorDBService:
                 },
                 "score": hit.score
             })
+            
+        # Free model from RAM
+        cls.unload_model()
             
         return formatted_results
 
