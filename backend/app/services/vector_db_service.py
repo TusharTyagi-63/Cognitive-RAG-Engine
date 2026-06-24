@@ -52,47 +52,54 @@ class VectorDBService:
         return cls._client
 
     @classmethod
-    def add_chunks(cls, document_id: UUID, user_id: UUID, chunks: List[str]) -> None:
+    async def add_chunks_async(cls, document_id: UUID, user_id: UUID, chunks: List[str]) -> None:
         """
         Embeds and stores text chunks in Qdrant.
-        Tags each chunk with the document_id and user_id for filtering.
+        Runs in small batches and yields to the event loop to prevent CPU starvation.
         """
         if not chunks:
             return
 
         client = cls.get_client()
-        model = cls.get_model()
+        import asyncio
+        import uuid
         
-        # Embed the chunks — fastembed returns a generator, convert to list
-        # Limit batch_size to 16 to save memory on Render Free Tier
-        embeddings = list(model.embed(chunks, batch_size=16))
-        
-        points = []
-        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-            # Create a deterministic UUID for the chunk
-            # Qdrant accepts UUID strings for point IDs
-            chunk_id = f"{str(document_id)[:-4]}{i:04d}" # slightly hacky determinism for test
+        # Process in batches of 16
+        batch_size = 16
+        for i in range(0, len(chunks), batch_size):
+            chunk_batch = chunks[i:i+batch_size]
             
-            from uuid import uuid5, NAMESPACE_DNS
-            point_id = str(uuid5(NAMESPACE_DNS, f"{str(document_id)}_{i}"))
-            
-            points.append(
-                PointStruct(
-                    id=point_id,
-                    vector=embedding.tolist(),
+            # 1. Embed this small batch in a thread
+            def embed_batch():
+                model = cls.get_model()
+                return list(model.embed(chunk_batch, batch_size=batch_size))
+                
+            embeddings = await asyncio.to_thread(embed_batch)
+
+            # 2. Prepare points
+            points = []
+            for j, (chunk, embedding) in enumerate(zip(chunk_batch, embeddings)):
+                points.append(PointStruct(
+                    id=str(uuid.uuid4()),
+                    vector=embedding.tolist() if hasattr(embedding, "tolist") else embedding,
                     payload={
-                        "text": chunk,
                         "document_id": str(document_id),
                         "user_id": str(user_id),
-                        "chunk_index": i
+                        "chunk_index": i + j,
+                        "text": chunk
                     }
-                )
-            )
+                ))
             
-        client.upsert(
-            collection_name=settings.QDRANT_COLLECTION_NAME,
-            points=points
-        )
+            # 3. Upsert points in a thread
+            def upsert_batch():
+                client.upsert(
+                    collection_name=settings.QDRANT_COLLECTION_NAME,
+                    points=points
+                )
+            await asyncio.to_thread(upsert_batch)
+            
+            # 4. Yield to the event loop so health checks can pass!
+            await asyncio.sleep(0.1)
 
     @classmethod
     def search_similar(cls, query: str, user_id: UUID, top_k: int = 5, document_ids: List[UUID] = None) -> List[Dict[str, Any]]:
