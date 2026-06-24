@@ -122,14 +122,14 @@ export function DashboardPage() {
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <header>
+      <header className="dashboard-header">
         <h1 className="text-gradient" style={{ fontSize: '2.5rem', margin: '0 0 0.5rem 0' }}>Dashboard</h1>
         <p style={{ color: 'var(--text-muted)', margin: 0 }}>Manage your documents and start chatting with the RAG engine.</p>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '2rem' }}>
         {/* Upload Card */}
-        <div className="glass-panel" style={{ padding: '3rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', border: '2px dashed var(--border-light)', background: 'rgba(0,0,0,0.2)' }}>
+        <div className="glass-panel upload-card-padding" style={{ padding: '3rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', border: '2px dashed var(--border-light)', background: 'rgba(0,0,0,0.2)' }}>
           <div style={{ padding: '1rem', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(236, 72, 153, 0.2))', borderRadius: '50%', color: 'var(--primary)', boxShadow: processing ? '0 0 30px rgba(236, 72, 153, 0.4)' : '0 0 20px rgba(99, 102, 241, 0.2)', transition: 'box-shadow 0.3s ease' }}>
             {uploading ? <Loader2 size={32} className="animate-spin" /> : processing ? <Cpu size={32} className="animate-pulse" color="var(--accent)" /> : <Upload size={32} />}
           </div>

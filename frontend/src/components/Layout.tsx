@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
-import { MessageSquare, Home, LogOut, Trash2 } from 'lucide-react';
+import { MessageSquare, Home, LogOut, Trash2, Menu, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 
@@ -15,6 +15,12 @@ export function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Close sidebar on navigation (mobile)
+  useEffect(() => {
+    setIsMobileSidebarOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     // Only refetch when we actually navigate to a new session (not on every route change)
@@ -53,13 +59,41 @@ export function Layout() {
   };
 
   return (
-    <div style={{ display: 'flex', width: '100%', height: '100vh' }}>
+    <div className="layout-container">
+      {/* Mobile Header (Only visible on small screens) */}
+      <div className="mobile-header">
+        <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, background: 'linear-gradient(135deg, var(--primary), var(--primary-light))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-0.5px' }}>
+          Cognitive RAG Engine
+        </h1>
+        <button 
+          onClick={() => setIsMobileSidebarOpen(true)}
+          style={{ background: 'transparent', padding: '0.5rem', border: 'none' }}
+        >
+          <Menu size={24} color="var(--text-main)" />
+        </button>
+      </div>
+
+      {/* Sidebar Overlay (Mobile) */}
+      <div 
+        className={`sidebar-overlay ${isMobileSidebarOpen ? 'open' : ''}`} 
+        onClick={() => setIsMobileSidebarOpen(false)}
+      />
+
       {/* Sidebar */}
-      <aside style={{ width: '250px', background: 'rgba(0, 0, 0, 0.4)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', transition: 'all 0.3s ease' }}>
-        <div style={{ padding: '2rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <aside className={`sidebar ${isMobileSidebarOpen ? 'open' : ''}`}>
+        <div style={{ padding: '2rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, background: 'linear-gradient(135deg, var(--primary), var(--primary-light))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-0.5px' }}>
           Cognitive RAG Engine
           </h1>
+          {/* Close button for mobile inside sidebar */}
+          {isMobileSidebarOpen && (
+            <button 
+              onClick={() => setIsMobileSidebarOpen(false)}
+              style={{ background: 'transparent', padding: '0', border: 'none' }}
+            >
+              <X size={20} color="var(--text-muted)" />
+            </button>
+          )}
         </div>
         
         <nav style={{ flex: 1, marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', overflowY: 'auto' }}>
@@ -105,14 +139,14 @@ export function Layout() {
 
         <button 
           onClick={handleLogout}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'transparent', color: 'var(--text-muted)' }}>
+          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'transparent', color: 'var(--text-muted)', padding: '1.5rem', borderTop: '1px solid var(--border-light)', borderRadius: 0 }}>
           <LogOut size={20} />
           Logout
         </button>
       </aside>
 
       {/* Main Content */}
-      <main style={{ flex: 1, overflowY: 'auto', padding: '2rem' }}>
+      <main className="main-content">
         <Outlet />
       </main>
     </div>

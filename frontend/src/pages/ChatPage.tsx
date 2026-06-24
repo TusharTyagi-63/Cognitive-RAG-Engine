@@ -209,8 +209,8 @@ export function ChatPage() {
             justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start'
           }}>
             <div style={{
-              maxWidth: '75%',
-              padding: '1.25rem 1.5rem',
+              maxWidth: '85%',
+              padding: '1rem 1.2rem',
               borderRadius: msg.role === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
               background: msg.role === 'user' ? 'linear-gradient(135deg, var(--primary), var(--accent-secondary))' : 'rgba(255, 255, 255, 0.03)',
               border: msg.role === 'user' ? 'none' : '1px solid var(--border-light)',
