@@ -54,8 +54,8 @@ class Settings(BaseSettings):
 
     # LLM Settings
     OPENAI_API_KEY: str = "dummy_key_for_now" # Should be set in .env
-    OPENAI_BASE_URL: str | None = None        # e.g., "http://localhost:11434/v1" for Ollama
-    LLM_MODEL: str = "gpt-3.5-turbo"          # e.g., "llama3" for Ollama
+    OPENAI_BASE_URL: str | None = "https://openrouter.ai/api/v1"
+    LLM_MODEL: str = "openrouter/auto"
     GEMINI_API_KEY: str | None = None
 
     model_config = SettingsConfigDict(
