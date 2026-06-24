@@ -47,7 +47,7 @@ class Settings(BaseSettings):
 
     # Vector Database
     QDRANT_DB_DIR: str = "backend/data/qdrant"
-    QDRANT_COLLECTION_NAME: str = "rag_documents"
+    QDRANT_COLLECTION_NAME: str = "rag_documents_v2"
     QDRANT_HOST: str = "qdrant"
     QDRANT_PORT: int = 6333
     QDRANT_API_KEY: str | None = None
