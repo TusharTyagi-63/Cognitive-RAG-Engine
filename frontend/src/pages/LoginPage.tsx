@@ -60,7 +60,10 @@ export function LoginPage() {
       login(response.data.access_token);
       navigate('/');
     } catch (err: any) {
-      if (err.response?.data?.detail) {
+      if (err.response?.data?.message) {
+        // Handle custom AppException format from the backend
+        setError(err.response.data.message);
+      } else if (err.response?.data?.detail) {
         // Handle FastAPI validation errors dynamically
         if (Array.isArray(err.response.data.detail)) {
           setError(err.response.data.detail[0].msg);
