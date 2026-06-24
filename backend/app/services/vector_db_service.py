@@ -160,7 +160,7 @@ class VectorDBService:
             
         search_result = client.search(
             collection_name=settings.QDRANT_COLLECTION_NAME,
-            query_vector=query_vector.tolist(),
+            query_vector=query_vector if isinstance(query_vector, list) else query_vector.tolist(),
             query_filter=Filter(must=must_conditions),
             limit=top_k
         )
