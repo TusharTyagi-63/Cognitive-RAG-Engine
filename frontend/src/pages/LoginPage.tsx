@@ -60,8 +60,8 @@ export function LoginPage() {
   };
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <form onSubmit={handleSubmit} className="glass-panel" style={{ padding: '3rem', display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', maxWidth: '400px' }}>
+    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '1rem' }}>
+      <form onSubmit={handleSubmit} className="glass-panel login-card">
         <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
           <h2 style={{ margin: 0, fontSize: '2rem' }}>{isSignUp ? 'Create Account' : 'Welcome Back'}</h2>
           <p style={{ color: 'var(--text-muted)' }}>{isSignUp ? 'Sign up to start chatting' : 'Log in to access your RAG documents'}</p>

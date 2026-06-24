@@ -302,4 +302,18 @@ a:hover {
   .upload-card-padding {
     padding: 2rem 1rem !important;
   }
+
+  .login-card {
+    padding: 2rem 1.5rem !important;
+    margin: 0 1rem;
+  }
+}
+
+.login-card {
+  padding: 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 400px;
 }
