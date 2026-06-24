@@ -44,11 +44,28 @@ class VectorDBService:
             
             # Ensure collection exists
             collections = cls._client.get_collections().collections
+            from qdrant_client.models import PayloadSchemaType
             if not any(c.name == settings.QDRANT_COLLECTION_NAME for c in collections):
                 cls._client.create_collection(
                     collection_name=settings.QDRANT_COLLECTION_NAME,
                     vectors_config=VectorParams(size=384, distance=Distance.COSINE),
                 )
+            
+            # Ensure indices exist so delete operations don't fail
+            try:
+                cls._client.create_payload_index(
+                    collection_name=settings.QDRANT_COLLECTION_NAME,
+                    field_name="document_id",
+                    field_schema=PayloadSchemaType.KEYWORD,
+                )
+                cls._client.create_payload_index(
+                    collection_name=settings.QDRANT_COLLECTION_NAME,
+                    field_name="user_id",
+                    field_schema=PayloadSchemaType.KEYWORD,
+                )
+            except Exception as e:
+                logger.warning(f"Could not create payload index (might already exist): {e}")
+                
         return cls._client
 
     @classmethod

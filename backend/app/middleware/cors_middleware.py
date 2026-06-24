@@ -45,12 +45,17 @@ def configure_cors(app: FastAPI) -> None:
     app : FastAPI
         The FastAPI application instance.
     """
-    allowed_origins = list(settings.ALLOWED_ORIGINS)
+    allowed_origins = list(settings.ALLOWED_ORIGINS) if settings.ALLOWED_ORIGINS else []
 
     # Always ensure the Render frontend is allowed (env var parsing can be flaky)
     render_frontend = "https://cognitive-rag-engine-1.onrender.com"
     if render_frontend not in allowed_origins:
         allowed_origins.append(render_frontend)
+
+    # Fallback to localhost if still empty
+    if not allowed_origins:
+        logger.warning("ALLOWED_ORIGINS is empty, falling back to localhost")
+        allowed_origins = ["http://localhost:3000", "http://localhost:5173", render_frontend]
 
     # Warn loudly if wildcard is used (it disables credentials support)
     if "*" in allowed_origins:
