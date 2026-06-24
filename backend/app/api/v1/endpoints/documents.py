@@ -142,6 +142,12 @@ async def delete_document(
     """
     Deletes the document record and removes the file from disk.
     """
-    await DocumentService.delete_document(session, current_user.id, document_id)
-    await session.commit()
-    return success_response(message="Document deleted successfully")
+    try:
+        await DocumentService.delete_document(session, current_user.id, document_id)
+        await session.commit()
+        return success_response(message="Document deleted successfully")
+    except Exception as e:
+        import traceback
+        error_msg = f"Failed to delete document: {e}\n{traceback.format_exc()}"
+        from backend.app.utils.exceptions import BadRequestException
+        raise BadRequestException(error_msg)
