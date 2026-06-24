@@ -43,7 +43,15 @@ class Settings(BaseSettings):
     # Document Management
     UPLOAD_DIR: str = "backend/data/uploads"
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10 MB
-    ALLOWED_EXTENSIONS: list[str] = [".txt", ".pdf", ".md", ".csv"]
+    ALLOWED_EXTENSIONS: list[str] = [
+        # Documents
+        ".txt", ".pdf", ".md", ".csv", ".docx", ".pptx", ".xlsx", ".rtf",
+        # Web & Data
+        ".html", ".htm", ".json", ".xml",
+        # Source Code & Config
+        ".py", ".js", ".ts", ".java", ".c", ".cpp", ".go", ".rs", ".rb",
+        ".php", ".sh", ".sql", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".log",
+    ]
 
     # Vector Database
     QDRANT_DB_DIR: str = "backend/data/qdrant"

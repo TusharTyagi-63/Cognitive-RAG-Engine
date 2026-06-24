@@ -156,7 +156,7 @@ export function DashboardPage() {
                     <div style={{ height: '100%', background: 'linear-gradient(90deg, var(--primary), var(--accent))', width: `${uploadProgress}%`, transition: 'width 0.2s', boxShadow: '0 0 10px var(--accent)' }} />
                   </div>
                 )}
-                <p style={{ margin: '0.5rem 0 0 0', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Supports PDF, TXT, MD, CSV up to 10MB.</p>
+                <p style={{ margin: '0.5rem 0 0 0', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Supports PDF, Word, PPT, Excel, HTML, JSON, code files & more (up to 10MB).</p>
               </>
             )}
           </div>
@@ -166,7 +166,7 @@ export function DashboardPage() {
             ref={fileInputRef} 
             onChange={handleFileUpload} 
             style={{ display: 'none' }} 
-            accept=".pdf,.txt,.md,.csv"
+            accept=".pdf,.txt,.md,.csv,.docx,.pptx,.xlsx,.rtf,.html,.htm,.json,.xml,.py,.js,.ts,.java,.c,.cpp,.go,.rs,.rb,.php,.sh,.sql,.yaml,.yml,.toml,.ini,.cfg,.log"
           />
           <button 
             onClick={() => fileInputRef.current?.click()} 
