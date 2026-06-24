@@ -18,6 +18,24 @@ export function LoginPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Instant client-side validation for Sign Up
+    if (isSignUp) {
+      if (username.trim().length < 3) {
+        setError('Username must be at least 3 characters long.');
+        return;
+      }
+      if (password.length < 8) {
+        setError('Password must be at least 8 characters long.');
+        return;
+      }
+      const trivial = ['password', '12345678', 'qwertyui'];
+      if (trivial.includes(password.toLowerCase())) {
+        setError('This password is too common. Choose a stronger one.');
+        return;
+      }
+    }
+
     setLoading(true);
     
     try {
