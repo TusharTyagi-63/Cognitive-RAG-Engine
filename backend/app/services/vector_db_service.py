@@ -11,28 +11,34 @@ logger = logging.getLogger(__name__)
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue, MatchAny
-from fastembed import TextEmbedding
+import google.generativeai as genai
 
 from backend.app.core.config import settings
 
 class VectorDBService:
     _client = None
-    _model = None
 
     @classmethod
-    def get_model(cls) -> TextEmbedding:
-        """Returns the embedding model, loading it into RAM only when needed."""
-        if cls._model is None:
-            cls._model = TextEmbedding("BAAI/bge-small-en-v1.5", threads=1)
-        return cls._model
-
-    @classmethod
-    def unload_model(cls) -> None:
-        """Frees the embedding model from RAM to prevent OOM crashes on Render."""
-        if cls._model is not None:
-            cls._model = None
-            import gc
-            gc.collect()
+    def _get_embedding(cls, texts: List[str] | str) -> List[List[float]]:
+        """Helper to get embeddings from Google Gemini API."""
+        if not settings.GEMINI_API_KEY:
+            raise ValueError("GEMINI_API_KEY is not configured in environment variables.")
+        
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        
+        # Gemini expects a single string or a list of strings
+        # "models/text-embedding-004" is the latest embedding model, size 768
+        result = genai.embed_content(
+            model="models/text-embedding-004",
+            content=texts,
+            task_type="retrieval_document" if isinstance(texts, list) else "retrieval_query"
+        )
+        
+        # embed_content returns a dict with 'embedding' key
+        embeddings = result['embedding']
+        if isinstance(texts, str):
+            return [embeddings]
+        return embeddings
 
     @classmethod
     def get_client(cls) -> QdrantClient:
@@ -57,7 +63,7 @@ class VectorDBService:
                 cls._client.create_collection(
                     collection_name=settings.QDRANT_COLLECTION_NAME,
                     vectors_config=VectorParams(
-                        size=384, 
+                        size=768,  # Gemini text-embedding-004 size 
                         distance=Distance.COSINE,
                         on_disk=True  # Force vectors to disk to save RAM
                     ),
@@ -99,15 +105,13 @@ class VectorDBService:
         for i in range(0, len(chunks), batch_size):
             chunk_batch = chunks[i:i+batch_size]
             
-            # 1. Embed this small batch in a thread
+            # 1. Embed this small batch using Gemini API
+            # Gemini handles batching natively, so we just pass the chunks directly
+            # We use to_thread just in case the HTTP request blocks
             def embed_batch():
-                model = cls.get_model()
-                return list(model.embed(chunk_batch, batch_size=batch_size))
+                return cls._get_embedding(chunk_batch)
                 
             embeddings = await asyncio.to_thread(embed_batch)
-            
-            import gc
-            gc.collect()
 
             # 2. Prepare points
             points = []
@@ -133,9 +137,6 @@ class VectorDBService:
             
             # 4. Yield to the event loop so health checks can pass!
             await asyncio.sleep(0.1)
-            
-        # Free the model from RAM after processing the document
-        cls.unload_model()
 
     @classmethod
     def search_similar(cls, query: str, user_id: UUID, top_k: int = 5, document_ids: List[UUID] = None) -> List[Dict[str, Any]]:
@@ -145,9 +146,9 @@ class VectorDBService:
         If document_ids is provided, further restricts to only those documents.
         """
         client = cls.get_client()
-        model = cls.get_model()
         
-        query_vector = list(model.embed([query]))[0]
+        # Use task_type="retrieval_query" for the query
+        query_vector = cls._get_embedding(query)[0]
         
         must_conditions = [
             FieldCondition(key="user_id", match=MatchValue(value=str(user_id)))
@@ -175,9 +176,6 @@ class VectorDBService:
                 },
                 "score": hit.score
             })
-            
-        # Free model from RAM
-        cls.unload_model()
             
         return formatted_results
 
