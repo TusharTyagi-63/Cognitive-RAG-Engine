@@ -39,8 +39,9 @@ services:
         sync: false # You will enter this manually in the Render dashboard
 
   # 2. React Frontend
-  - type: static
+  - type: web
     name: rag-frontend
+    env: static
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     rootDir: frontend
