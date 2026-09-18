@@ -140,7 +140,16 @@ export function ChatPage() {
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok || !response.body) throw new Error('Stream failed');
+      if (!response.ok || !response.body) {
+        let errDetail = 'Stream connection failed';
+        try {
+          const errJson = await response.json();
+          errDetail = errJson.detail || errJson.message || `Server error (${response.status})`;
+        } catch (_) {
+          errDetail = `Server error (${response.status})`;
+        }
+        throw new Error(errDetail);
+      }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -188,11 +197,14 @@ export function ChatPage() {
       if (id === 'new') {
         navigate(`/chat/${targetSessionId}`, { replace: true });
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error('Chat error:', err);
       setMessages(prev => {
         const updated = [...prev];
-        updated[updated.length - 1] = { role: 'assistant', content: 'Sorry, I encountered an error answering your question. Please check connection.' };
+        updated[updated.length - 1] = { 
+          role: 'assistant', 
+          content: `⚠️ **Query Notice**: ${err?.message || 'I encountered an error answering your question. Please check connection.'}` 
+        };
         return updated;
       });
     } finally {
@@ -319,7 +331,7 @@ export function ChatPage() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#94a3b8' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
-            <span style={{ fontFamily: 'monospace', fontSize: '0.7rem' }} className="hide-mobile">Gemini 2.0 Flash • Qdrant</span>
+            <span style={{ fontFamily: 'monospace', fontSize: '0.7rem' }} className="hide-mobile">Gemini 3.6 Flash • Qdrant</span>
             <span style={{ fontFamily: 'monospace', fontSize: '0.7rem' }} className="mobile-only">Active</span>
           </div>
         </div>

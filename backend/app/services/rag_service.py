@@ -75,6 +75,33 @@ Format your response using clean, readable Markdown."""
         if not results:
             context_block = "No document content found."
             sources = []
+            # Fallback: if vector search returned 0 chunks but user has documents on disk
+            if user_documents:
+                try:
+                    from backend.app.services.document_service import DocumentService
+                    from backend.app.services.parsing_service import ParsingService
+                    from backend.app.database.connection import async_session_factory
+                    async with async_session_factory() as db_session:
+                        user_docs = await DocumentService.get_user_documents(db_session, user_id)
+                        fallback_pieces = []
+                        for d in user_docs[:4]:
+                            fpath = DocumentService.get_document_path(d.id)
+                            if fpath.exists():
+                                txt = await asyncio.to_thread(ParsingService.extract_text, fpath, d.content_type)
+                                if txt:
+                                    snippet = txt[:3500]
+                                    fallback_pieces.append(f"--- DOCUMENT: {d.filename} ---\n{snippet}\n")
+                                    sources.append({
+                                        "document_id": str(d.id),
+                                        "chunk_index": 0,
+                                        "content": snippet[:1000],
+                                        "score": 0.92
+                                    })
+                        if fallback_pieces:
+                            context_block = "\n".join(fallback_pieces)
+                            results = True
+                except Exception as e:
+                    logger.error(f"Fallback extraction failed: {e}")
         else:
             context_pieces = []
             sources = []
@@ -126,6 +153,33 @@ Format your response using clean, readable Markdown."""
         if not results:
             context_block = "No document content found."
             sources = []
+            # Resilient fallback: parse documents directly from disk if vector search was empty
+            if user_documents:
+                try:
+                    from backend.app.services.document_service import DocumentService
+                    from backend.app.services.parsing_service import ParsingService
+                    from backend.app.database.connection import async_session_factory
+                    async with async_session_factory() as db_session:
+                        user_docs = await DocumentService.get_user_documents(db_session, user_id)
+                        fallback_pieces = []
+                        for d in user_docs[:4]:
+                            fpath = DocumentService.get_document_path(d.id)
+                            if fpath.exists():
+                                txt = await asyncio.to_thread(ParsingService.extract_text, fpath, d.content_type)
+                                if txt:
+                                    snippet = txt[:3500]
+                                    fallback_pieces.append(f"--- DOCUMENT: {d.filename} ---\n{snippet}\n")
+                                    sources.append({
+                                        "document_id": str(d.id),
+                                        "chunk_index": 0,
+                                        "content": snippet[:1000],
+                                        "score": 0.92
+                                    })
+                        if fallback_pieces:
+                            context_block = "\n".join(fallback_pieces)
+                            results = True
+                except Exception as e:
+                    logger.error(f"Fallback stream extraction failed: {e}")
         else:
             context_pieces = []
             sources = []

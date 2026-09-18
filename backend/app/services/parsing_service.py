@@ -258,7 +258,7 @@ class ParsingService:
             raise BadRequestException("GEMINI_API_KEY is not configured. Cannot process images.")
 
         genai.configure(api_key=settings.GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model = genai.GenerativeModel('gemini-3.6-flash')
 
         img = Image.open(file_path)
 

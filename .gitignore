@@ -54,6 +54,8 @@ logs/
 # Docker volumes / data
 postgres_data/
 chroma_data/
+qdrant_data/
+backend/data/
 
 # Alembic (generated migrations are committed, but not the compiled cache)
 alembic/versions/__pycache__/

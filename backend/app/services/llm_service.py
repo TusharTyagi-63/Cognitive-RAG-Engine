@@ -50,10 +50,10 @@ class LLMService:
             and (not settings.OPENAI_API_KEY or settings.OPENAI_API_KEY == "dummy_key_for_now")
         )
         if use_gemini:
-            # Use gemini-2.0-flash if the configured model isn't already a Gemini model
-            if settings.LLM_MODEL and "gemini" in settings.LLM_MODEL.lower():
+            # Use gemini-3.6-flash (gemini-2.0-flash was deprecated and retired by Google)
+            if settings.LLM_MODEL and "gemini" in settings.LLM_MODEL.lower() and "2.0" not in settings.LLM_MODEL:
                 return settings.LLM_MODEL
-            return "gemini-2.0-flash"
+            return "gemini-3.6-flash"
         return settings.LLM_MODEL
 
     @classmethod

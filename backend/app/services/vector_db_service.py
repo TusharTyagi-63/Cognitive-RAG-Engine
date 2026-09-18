@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue, MatchAny
-import google.generativeai as genai
 
 from backend.app.core.config import settings
 
@@ -20,70 +19,116 @@ class VectorDBService:
 
     @classmethod
     def _get_embedding(cls, texts: List[str] | str) -> List[List[float]]:
-        """Helper to get embeddings from Google Gemini API."""
-        if not settings.GEMINI_API_KEY:
-            raise ValueError("GEMINI_API_KEY is not configured in environment variables.")
-        
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        
-        # "models/gemini-embedding-2" is the correct API model name for this SDK version
-        result = genai.embed_content(
-            model="models/gemini-embedding-2",
-            content=texts,
-            task_type="retrieval_document" if isinstance(texts, list) else "retrieval_query",
-            output_dimensionality=768
-        )
-        
-        # embed_content returns a dict with 'embedding' key
-        embeddings = result['embedding']
-        if isinstance(texts, str):
-            return [embeddings]
-        return embeddings
+        """Helper to get embeddings using OpenAI-compatible Gemini or standard OpenAI endpoint."""
+        from openai import OpenAI
+
+        inputs = [texts] if isinstance(texts, str) else list(texts)
+        if not inputs:
+            return []
+
+        # 1. Use Gemini OpenAI-compatible endpoint if GEMINI_API_KEY is available
+        if settings.GEMINI_API_KEY:
+            client = OpenAI(
+                api_key=settings.GEMINI_API_KEY,
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+            )
+            try:
+                res = client.embeddings.create(
+                    input=inputs,
+                    model="gemini-embedding-2-preview",
+                    dimensions=768
+                )
+                return [item.embedding for item in res.data]
+            except Exception as e:
+                logger.warning(f"Error generating embedding with dimensions=768: {e}. Retrying default dimensions...")
+                res = client.embeddings.create(
+                    input=inputs,
+                    model="gemini-embedding-2-preview"
+                )
+                return [
+                    item.embedding[:768] if len(item.embedding) >= 768 
+                    else item.embedding + [0.0] * (768 - len(item.embedding)) 
+                    for item in res.data
+                ]
+
+        # 2. Use OpenAI endpoint
+        if settings.OPENAI_API_KEY:
+            client = OpenAI(
+                api_key=settings.OPENAI_API_KEY,
+                base_url=settings.OPENAI_BASE_URL
+            )
+            res = client.embeddings.create(
+                input=inputs,
+                model="text-embedding-3-small",
+                dimensions=768
+            )
+            return [item.embedding for item in res.data]
+
+        raise ValueError("Neither GEMINI_API_KEY nor OPENAI_API_KEY is configured for embeddings.")
 
     @classmethod
     def get_client(cls) -> QdrantClient:
-        """Returns a singleton QdrantClient connected to the local persist directory."""
+        """Returns a singleton QdrantClient connected to local persist directory or remote host."""
         if cls._client is None:
+            client = None
+
+            # 1. If an explicit Qdrant Cloud API key is provided
             if settings.QDRANT_API_KEY:
-                cls._client = QdrantClient(url=settings.QDRANT_HOST, api_key=settings.QDRANT_API_KEY)
-            elif settings.QDRANT_HOST in ["localhost", "127.0.0.1"] and settings.is_production:
-                # Render free tier: fallback to local disk storage
-                cls._client = QdrantClient(path="./qdrant_data")
-            else:
                 try:
-                    cls._client = QdrantClient(host=settings.QDRANT_HOST, port=settings.QDRANT_PORT)
-                except Exception:
-                    # Fallback to local path if connection refused
-                    cls._client = QdrantClient(path="./qdrant_data")
-            
+                    client = QdrantClient(url=settings.QDRANT_HOST, api_key=settings.QDRANT_API_KEY)
+                    client.get_collections()
+                except Exception as e:
+                    logger.warning(f"Could not connect to Qdrant Cloud: {e}")
+                    client = None
+
+            # 2. If a custom remote host is configured (and not localhost/default on cloud)
+            if client is None and settings.QDRANT_HOST not in ["", "local", "disk", "qdrant"]:
+                try:
+                    client = QdrantClient(host=settings.QDRANT_HOST, port=settings.QDRANT_PORT, timeout=2.0)
+                    client.get_collections()
+                except Exception as e:
+                    logger.warning(f"Remote Qdrant host '{settings.QDRANT_HOST}' unreachable: {e}")
+                    client = None
+
+            # 3. Fallback to local embedded disk storage (works universally across Render, Linux, Windows)
+            if client is None:
+                import os
+                os.makedirs("./qdrant_data", exist_ok=True)
+                client = QdrantClient(path="./qdrant_data")
+
+            cls._client = client
+
             # Ensure collection exists
-            collections = cls._client.get_collections().collections
-            from qdrant_client.models import PayloadSchemaType
-            if not any(c.name == settings.QDRANT_COLLECTION_NAME for c in collections):
-                cls._client.create_collection(
-                    collection_name=settings.QDRANT_COLLECTION_NAME,
-                    vectors_config=VectorParams(
-                        size=768,  # Gemini text-embedding-004 size 
-                        distance=Distance.COSINE,
-                        on_disk=True  # Force vectors to disk to save RAM
-                    ),
-                    on_disk_payload=True  # Force payload to disk to save RAM
-                )
-            
-            # Ensure indices exist so delete operations don't fail
             try:
-                cls._client.create_payload_index(
-                    collection_name=settings.QDRANT_COLLECTION_NAME,
-                    field_name="document_id",
-                    field_schema=PayloadSchemaType.KEYWORD,
-                )
-                cls._client.create_payload_index(
-                    collection_name=settings.QDRANT_COLLECTION_NAME,
-                    field_name="user_id",
-                    field_schema=PayloadSchemaType.KEYWORD,
-                )
+                collections = cls._client.get_collections().collections
+                from qdrant_client.models import PayloadSchemaType
+                if not any(c.name == settings.QDRANT_COLLECTION_NAME for c in collections):
+                    cls._client.create_collection(
+                        collection_name=settings.QDRANT_COLLECTION_NAME,
+                        vectors_config=VectorParams(
+                            size=768,  # Gemini embedding size 
+                            distance=Distance.COSINE,
+                            on_disk=True  # Force vectors to disk to save RAM
+                        ),
+                        on_disk_payload=True  # Force payload to disk to save RAM
+                    )
+                
+                # Ensure indices exist so delete operations don't fail
+                try:
+                    cls._client.create_payload_index(
+                        collection_name=settings.QDRANT_COLLECTION_NAME,
+                        field_name="document_id",
+                        field_schema=PayloadSchemaType.KEYWORD,
+                    )
+                    cls._client.create_payload_index(
+                        collection_name=settings.QDRANT_COLLECTION_NAME,
+                        field_name="user_id",
+                        field_schema=PayloadSchemaType.KEYWORD,
+                    )
+                except Exception as e:
+                    logger.debug(f"Payload index already exists or could not be created: {e}")
             except Exception as e:
-                logger.warning(f"Could not create payload index (might already exist): {e}")
+                logger.error(f"Error ensuring Qdrant collection: {e}")
                 
         return cls._client
 
