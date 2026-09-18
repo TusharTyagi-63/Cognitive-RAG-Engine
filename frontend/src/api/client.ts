@@ -1,10 +1,29 @@
 import axios from 'axios';
 
-let envUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-if (envUrl && !envUrl.startsWith('http')) {
-  envUrl = `https://${envUrl}`;
+let savedUrl = localStorage.getItem('API_URL');
+let envUrl = import.meta.env.VITE_API_URL || '';
+
+// Ignore internal Docker / Render service names that don't have a public TLD
+if (envUrl === 'rag-backend' || (envUrl && !envUrl.includes('.') && !envUrl.includes('localhost'))) {
+  envUrl = '';
 }
-export let baseUrl = envUrl.replace(/\/$/, '');
+
+let activeUrl = savedUrl || envUrl || 'http://localhost:8000';
+if (activeUrl && !activeUrl.startsWith('http')) {
+  activeUrl = `https://${activeUrl}`;
+}
+
+export let baseUrl = activeUrl.replace(/\/$/, '');
+
+export const setApiUrl = (newUrl: string) => {
+  let formatted = newUrl.trim();
+  if (formatted && !formatted.startsWith('http')) {
+    formatted = `https://${formatted}`;
+  }
+  formatted = formatted.replace(/\/$/, '');
+  localStorage.setItem('API_URL', formatted);
+  window.location.reload();
+};
 
 export const api = axios.create({
   baseURL: `${baseUrl}/api/v1`,

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../api/client';
+import { api, baseUrl, setApiUrl } from '../api/client';
 
 export function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -12,6 +12,8 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
+  const [customApiUrl, setCustomApiUrl] = useState(baseUrl);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -77,10 +79,18 @@ export function LoginPage() {
           setError(err.response.data.detail);
         }
       } else {
-        setError(isSignUp ? 'Registration failed.' : 'Login failed. Please check credentials.');
+        setError(`Cannot reach backend server (${baseUrl}). Make sure your Render backend is deployed or configure the URL below.`);
+        setShowConfig(true);
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveApiUrl = (e: FormEvent) => {
+    e.preventDefault();
+    if (customApiUrl) {
+      setApiUrl(customApiUrl);
     }
   };
 
@@ -139,12 +149,12 @@ export function LoginPage() {
             {showPassword ? (
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 crystalline 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
             )}
           </button>
         </div>
 
-        {error && <div style={{ color: '#ef4444', fontSize: '0.875rem' }}>{error}</div>}
+        {error && <div style={{ color: '#ef4444', fontSize: '0.875rem', lineHeight: '1.4' }}>{error}</div>}
 
         <button type="submit" style={{ marginTop: '1rem' }} disabled={loading}>
           {loading ? (isSignUp ? 'Creating...' : 'Logging In...') : (isSignUp ? 'Sign Up' : 'Log In')}
@@ -158,6 +168,38 @@ export function LoginPage() {
           >
             {isSignUp ? 'Already have an account? Log In' : 'Need an account? Sign Up'}
           </button>
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: '1.25rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <button
+            type="button"
+            onClick={() => setShowConfig(!showConfig)}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.75rem', cursor: 'pointer' }}
+          >
+            ⚙️ {showConfig ? 'Hide Backend URL Settings' : 'Configure Backend URL'}
+          </button>
+
+          {showConfig && (
+            <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', textAlign: 'left' }}>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Render Backend Public URL:
+              </label>
+              <input
+                type="text"
+                placeholder="https://rag-backend-xxxx.onrender.com"
+                value={customApiUrl}
+                onChange={(e) => setCustomApiUrl(e.target.value)}
+                style={{ fontSize: '0.8rem', padding: '0.4rem 0.6rem' }}
+              />
+              <button
+                type="button"
+                onClick={handleSaveApiUrl}
+                style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem', alignSelf: 'flex-start' }}
+              >
+                Save & Connect
+              </button>
+            </div>
+          )}
         </div>
       </form>
     </div>

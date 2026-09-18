@@ -47,10 +47,7 @@ services:
     rootDir: frontend
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: rag-backend
-          property: host
+        sync: false
     routes:
       - type: rewrite
         source: /*
