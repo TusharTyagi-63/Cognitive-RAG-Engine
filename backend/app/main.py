@@ -104,15 +104,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         },
     )
 
-    # Preload models in background threads to avoid deadlocking the async event loop on the first request
+    # Preload vector database client during startup
     try:
         from backend.app.services.vector_db_service import VectorDBService
-        from backend.app.services.reranker_service import RerankerService
-        logger.info("Preloading embedding model...")
-        await asyncio.to_thread(VectorDBService.get_model)
-        logger.info("Models loaded successfully.")
+        logger.info("Initializing vector database client...")
+        await asyncio.to_thread(VectorDBService.get_client)
+        logger.info("Vector database client initialized successfully.")
     except Exception as e:
-        logger.error(f"Failed to preload models: {e}")
+        logger.warning(f"Could not initialize vector database client at startup: {e}")
 
     yield  # ← Application is live and serving requests here
 
