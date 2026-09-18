@@ -39,11 +39,11 @@ services:
         sync: false # You will enter this manually in the Render dashboard
 
   # 2. React Frontend
-  - type: web
+  - type: static
     name: rag-frontend
-    env: static
-    buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: frontend/dist
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    rootDir: frontend
     envVars:
       - key: VITE_API_URL
         fromService:
