@@ -1,50 +1,41 @@
-services:
-  # 1. PostgreSQL Database
-  - type: pserv
-    name: rag-database
-    env: postgres
+databases:
+  - name: rag-database
     plan: free
-    
-  # 2. FastAPI Backend
+
+services:
+  # 1. FastAPI Backend
   - type: web
     name: rag-backend
     env: docker
     dockerfilePath: ./Dockerfile
     plan: free
-    disk:
-      name: rag-data
-      mountPath: /app/backend/data
-      sizeGB: 1
+    # Note: Free tier does not support Persistent Disks.
+    # Qdrant vector data and uploaded files will be reset on every deploy.
     envVars:
       - key: POSTGRES_HOST
-        fromService:
-          type: pserv
+        fromDatabase:
           name: rag-database
           property: host
       - key: POSTGRES_PORT
-        fromService:
-          type: pserv
+        fromDatabase:
           name: rag-database
           property: port
       - key: POSTGRES_DB
-        fromService:
-          type: pserv
+        fromDatabase:
           name: rag-database
           property: database
       - key: POSTGRES_USER
-        fromService:
-          type: pserv
+        fromDatabase:
           name: rag-database
           property: user
       - key: POSTGRES_PASSWORD
-        fromService:
-          type: pserv
+        fromDatabase:
           name: rag-database
           property: password
       - key: GEMINI_API_KEY
         sync: false # You will enter this manually in the Render dashboard
 
-  # 3. React Frontend
+  # 2. React Frontend
   - type: web
     name: rag-frontend
     env: static
@@ -55,7 +46,7 @@ services:
         fromService:
           type: web
           name: rag-backend
-          property: hosturl
+          property: host
     routes:
       - type: rewrite
         source: /*
