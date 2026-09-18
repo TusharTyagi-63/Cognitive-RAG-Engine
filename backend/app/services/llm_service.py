@@ -17,13 +17,44 @@ class LLMService:
 
     @classmethod
     def get_client(cls) -> AsyncOpenAI:
-        """Returns a singleton AsyncOpenAI client."""
+        """
+        Returns a singleton AsyncOpenAI client.
+        Automatically uses Gemini OpenAI-compatible endpoint when GEMINI_API_KEY is available
+        and OPENAI_API_KEY is unset or dummy.
+        """
         if cls._client is None:
-            cls._client = AsyncOpenAI(
-                api_key=settings.OPENAI_API_KEY,
-                base_url=settings.OPENAI_BASE_URL
+            # Check if we should fallback to Google Gemini's official OpenAI-compatible endpoint
+            use_gemini = (
+                bool(settings.GEMINI_API_KEY)
+                and (not settings.OPENAI_API_KEY or settings.OPENAI_API_KEY == "dummy_key_for_now")
             )
+            if use_gemini:
+                logger.info("Initializing LLMService with Google Gemini OpenAI-compatible endpoint.")
+                cls._client = AsyncOpenAI(
+                    api_key=settings.GEMINI_API_KEY,
+                    base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+                )
+            else:
+                logger.info(f"Initializing LLMService with base_url={settings.OPENAI_BASE_URL}")
+                cls._client = AsyncOpenAI(
+                    api_key=settings.OPENAI_API_KEY,
+                    base_url=settings.OPENAI_BASE_URL
+                )
         return cls._client
+
+    @classmethod
+    def get_model(cls) -> str:
+        """Selects appropriate model identifier based on the active provider."""
+        use_gemini = (
+            bool(settings.GEMINI_API_KEY)
+            and (not settings.OPENAI_API_KEY or settings.OPENAI_API_KEY == "dummy_key_for_now")
+        )
+        if use_gemini:
+            # Use gemini-2.0-flash if the configured model isn't already a Gemini model
+            if settings.LLM_MODEL and "gemini" in settings.LLM_MODEL.lower():
+                return settings.LLM_MODEL
+            return "gemini-2.0-flash"
+        return settings.LLM_MODEL
 
     @classmethod
     async def generate_response(cls, system_prompt: str, user_prompt: str, history: list[dict] = None) -> str:
@@ -31,6 +62,7 @@ class LLMService:
         Calls the LLM with a system prompt, optional history, and user prompt.
         """
         client = cls.get_client()
+        model_name = cls.get_model()
         
         messages = [{"role": "system", "content": system_prompt}]
         if history:
@@ -39,14 +71,14 @@ class LLMService:
         
         try:
             response = await client.chat.completions.create(
-                model=settings.LLM_MODEL,
+                model=model_name,
                 messages=messages,
                 temperature=0.2,
                 max_tokens=4096
             )
             return response.choices[0].message.content
         except Exception as e:
-            logger.error(f"LLM Generation failed: {str(e)}")
+            logger.error(f"LLM Generation failed with model '{model_name}': {str(e)}")
             raise
 
     @classmethod
@@ -56,6 +88,7 @@ class LLMService:
         Yields raw text chunks as they arrive from the API.
         """
         client = cls.get_client()
+        model_name = cls.get_model()
 
         messages = [{"role": "system", "content": system_prompt}]
         if history:
@@ -64,7 +97,7 @@ class LLMService:
 
         try:
             stream = await client.chat.completions.create(
-                model=settings.LLM_MODEL,
+                model=model_name,
                 messages=messages,
                 temperature=0.2,
                 max_tokens=4096,
@@ -76,5 +109,5 @@ class LLMService:
                     if delta:
                         yield delta
         except Exception as e:
-            logger.error(f"LLM Streaming failed: {str(e)}")
+            logger.error(f"LLM Streaming failed with model '{model_name}': {str(e)}")
             raise

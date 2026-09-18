@@ -255,18 +255,30 @@ export function ChatPage() {
     <div style={{ display: 'flex', height: '100%', width: '100%', overflow: 'hidden', position: 'relative' }}>
       
       {/* Main Chat Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', minWidth: 0 }}>
         
         {/* Sub-Header: Mode Switcher & Status */}
-        <div style={{ height: '44px', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '0 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(9, 11, 16, 0.6)', backdropFilter: 'blur(10px)', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Engine Mode:</span>
+        <div style={{ 
+          minHeight: '44px', 
+          borderBottom: '1px solid rgba(255,255,255,0.06)', 
+          padding: '0.4rem 1rem', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between', 
+          background: 'rgba(9, 11, 16, 0.75)', 
+          backdropFilter: 'blur(10px)', 
+          flexShrink: 0,
+          flexWrap: 'wrap',
+          gap: '0.5rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }} className="hide-mobile">Engine Mode:</span>
             <div style={{ display: 'flex', background: 'rgba(0,0,0,0.4)', padding: '2px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
               <button 
                 type="button"
                 onClick={() => setReasoningMode('fast')}
                 style={{ 
-                  padding: '3px 10px', 
+                  padding: '4px 10px', 
                   borderRadius: '6px', 
                   fontSize: '0.725rem', 
                   fontWeight: 600, 
@@ -286,7 +298,7 @@ export function ChatPage() {
                 type="button"
                 onClick={() => setReasoningMode('deep')}
                 style={{ 
-                  padding: '3px 10px', 
+                  padding: '4px 10px', 
                   borderRadius: '6px', 
                   fontSize: '0.725rem', 
                   fontWeight: 600, 
@@ -305,40 +317,41 @@ export function ChatPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: '#94a3b8' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#94a3b8' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
-            <span style={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>Gemini 2.0 Flash • Qdrant</span>
+            <span style={{ fontFamily: 'monospace', fontSize: '0.7rem' }} className="hide-mobile">Gemini 2.0 Flash • Qdrant</span>
+            <span style={{ fontFamily: 'monospace', fontSize: '0.7rem' }} className="mobile-only">Active</span>
           </div>
         </div>
 
         {/* Message Stream */}
-        <div className="custom-scrollbar" style={{ flex: 1, padding: '1.5rem', overflowY: 'auto' }}>
-          <div style={{ maxWidth: '820px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div className="custom-scrollbar" style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
+          <div style={{ maxWidth: '840px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             {messages.map((msg, idx) => (
-              <div key={idx} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                <div style={{
-                  maxWidth: '88%',
-                  padding: '1.1rem 1.35rem',
-                  borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                  background: msg.role === 'user' ? 'linear-gradient(135deg, #6366f1, #4f46e5)' : 'rgba(18, 21, 31, 0.75)',
-                  border: msg.role === 'user' ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
-                  boxShadow: msg.role === 'user' ? '0 4px 18px rgba(99, 102, 241, 0.25)' : '0 8px 30px rgba(0,0,0,0.2)',
-                  lineHeight: '1.65',
-                  backdropFilter: 'blur(16px)'
-                }}>
+              <div key={idx} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start', width: '100%' }}>
+                <div className={msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}>
                   {msg.role === 'user' ? (
-                    <div style={{ color: '#fff', fontSize: '0.925rem' }}>{msg.content}</div>
+                    <div>{msg.content}</div>
                   ) : (
                     <div>
                       <div style={{ fontSize: '0.925rem', color: '#f1f5f9' }}>
                         <ReactMarkdown
                           components={{
-                            p: ({children}) => <p style={{margin: '0 0 0.65rem 0'}}>{children}</p>,
-                            ul: ({children}) => <ul style={{margin: '0.5rem 0', paddingLeft: '1.4rem'}}>{children}</ul>,
-                            ol: ({children}) => <ol style={{margin: '0.5rem 0', paddingLeft: '1.4rem'}}>{children}</ol>,
+                            p: ({children}) => <p style={{margin: '0 0 0.65rem 0', lineHeight: 1.6}}>{children}</p>,
+                            ul: ({children}) => <ul style={{margin: '0.5rem 0', paddingLeft: '1.3rem'}}>{children}</ul>,
+                            ol: ({children}) => <ol style={{margin: '0.5rem 0', paddingLeft: '1.3rem'}}>{children}</ol>,
                             li: ({children}) => <li style={{marginBottom: '0.3rem'}}>{children}</li>,
                             strong: ({children}) => <strong style={{color: '#fff', fontWeight: 600}}>{children}</strong>,
                             code: CodeBlock as any,
+                            table: ({children}) => (
+                              <div style={{ overflowX: 'auto', maxWidth: '100%', margin: '0.75rem 0', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.8rem', textAlign: 'left' }}>
+                                  {children}
+                                </table>
+                              </div>
+                            ),
+                            th: ({children}) => <th style={{ borderBottom: '1px solid rgba(255,255,255,0.12)', padding: '6px 10px', background: 'rgba(255,255,255,0.06)', fontWeight: 600, color: '#f8fafc' }}>{children}</th>,
+                            td: ({children}) => <td style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '6px 10px', color: '#cbd5e1' }}>{children}</td>,
                           }}
                         >
                           {msg.content}
@@ -348,9 +361,9 @@ export function ChatPage() {
                       {/* Source Citations */}
                       {msg.sources && msg.sources.length > 0 && (
                         <div style={{ marginTop: '1.25rem', paddingTop: '0.85rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
                             <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
-                              Grounding Evidence Sources (Click to inspect)
+                              Grounding Sources (Click to inspect):
                             </span>
                           </div>
                           
@@ -368,18 +381,22 @@ export function ChatPage() {
                                     border: '1px solid rgba(99, 102, 241, 0.3)', 
                                     padding: '0.3rem 0.65rem', 
                                     borderRadius: '8px',
-                                    fontSize: '0.75rem',
+                                    fontSize: '0.725rem',
                                     color: '#c7d2fe',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '0.35rem',
                                     cursor: 'pointer',
-                                    transition: 'all 0.15s'
+                                    transition: 'all 0.15s',
+                                    maxWidth: '100%',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
                                   }}
                                   title="Inspect cited passage"
                                 >
                                   <span>{isImage ? '🖼️' : '📄'}</span>
-                                  <span>{docName}</span>
+                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{docName}</span>
                                   <span style={{ fontSize: '0.65rem', color: '#818cf8', opacity: 0.8 }}>→</span>
                                 </button>
                               );
@@ -390,11 +407,11 @@ export function ChatPage() {
 
                       {/* Action Toolbar */}
                       {msg.content && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginTop: '0.85rem', paddingTop: '0.5rem', fontSize: '0.75rem', color: '#64748b' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap', marginTop: '0.85rem', paddingTop: '0.5rem', fontSize: '0.75rem', color: '#64748b' }}>
                           <button
                             type="button"
                             onClick={() => handleToggleAudio(msg.content, idx)}
-                            style={{ background: 'none', border: 'none', padding: 0, color: speakingIndex === idx ? '#818cf8' : '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}
+                            style={{ background: 'none', border: 'none', padding: '4px 0', color: speakingIndex === idx ? '#818cf8' : '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}
                           >
                             {speakingIndex === idx ? <VolumeX size={14} /> : <Volume2 size={14} />}
                             {speakingIndex === idx ? 'Stop Speaking' : 'Listen Aloud'}
@@ -406,7 +423,7 @@ export function ChatPage() {
                               navigator.clipboard.writeText(msg.content);
                               alert('Answer copied to clipboard!');
                             }}
-                            style={{ background: 'none', border: 'none', padding: 0, color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}
+                            style={{ background: 'none', border: 'none', padding: '4px 0', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}
                           >
                             <Copy size={13} />
                             Copy
@@ -415,7 +432,7 @@ export function ChatPage() {
                           <button
                             type="button"
                             onClick={() => handleExportBriefing(msg)}
-                            style={{ background: 'none', border: 'none', padding: 0, color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}
+                            style={{ background: 'none', border: 'none', padding: '4px 0', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}
                           >
                             <Download size={13} />
                             Export MD
@@ -437,32 +454,32 @@ export function ChatPage() {
         </div>
 
         {/* Input Bar & Smart Suggestions */}
-        <div style={{ padding: '1rem 1.5rem', background: 'rgba(11, 14, 20, 0.85)', borderTop: '1px solid rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)' }}>
-          <div style={{ maxWidth: '820px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+        <div style={{ padding: '0.75rem 1rem', background: 'rgba(11, 14, 20, 0.85)', borderTop: '1px solid rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)' }}>
+          <div style={{ maxWidth: '840px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             
             {/* Quick Prompt Chips */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflowX: 'auto', paddingBottom: '2px' }} className="custom-scrollbar">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflowX: 'auto', paddingBottom: '2px' }} className="custom-scrollbar touch-scroll">
               <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', flexShrink: 0 }}>
                 Quick Prompts:
               </span>
               <button 
                 type="button"
                 onClick={() => { setInput('Provide an executive summary of key risks across our documents.'); inputRef.current?.focus(); }}
-                style={{ padding: '0.25rem 0.65rem', borderRadius: '100px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#cbd5e1', fontSize: '0.725rem', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                style={{ padding: '0.25rem 0.65rem', borderRadius: '100px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#cbd5e1', fontSize: '0.725rem', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
               >
                 📊 Summarize Key Risks
               </button>
               <button 
                 type="button"
                 onClick={() => { setInput('Extract all tables and quantitative metrics mentioned in the reports.'); inputRef.current?.focus(); }}
-                style={{ padding: '0.25rem 0.65rem', borderRadius: '100px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#cbd5e1', fontSize: '0.725rem', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                style={{ padding: '0.25rem 0.65rem', borderRadius: '100px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#cbd5e1', fontSize: '0.725rem', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
               >
                 📈 Extract Metrics & Tables
               </button>
               <button 
                 type="button"
                 onClick={() => { setInput('Read all diagrams and describe the architecture layout.'); inputRef.current?.focus(); }}
-                style={{ padding: '0.25rem 0.65rem', borderRadius: '100px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#cbd5e1', fontSize: '0.725rem', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                style={{ padding: '0.25rem 0.65rem', borderRadius: '100px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#cbd5e1', fontSize: '0.725rem', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
               >
                 🖼️ Parse Diagram OCR
               </button>
@@ -504,21 +521,21 @@ export function ChatPage() {
             <form onSubmit={handleSend} style={{ 
               display: 'flex', 
               alignItems: 'center', 
-              gap: '0.5rem', 
+              gap: '0.4rem', 
               background: '#141824', 
               border: '1px solid rgba(255,255,255,0.12)', 
               borderRadius: '14px', 
-              padding: '0.35rem 0.6rem',
+              padding: '0.35rem 0.5rem',
               boxShadow: '0 8px 24px rgba(0,0,0,0.35)'
             }}>
               <button
                 type="button"
                 onClick={handleEnhancePrompt}
                 title="✨ Polish & Expand Prompt with AI"
-                style={{ background: 'transparent', border: 'none', padding: '0.4rem', color: '#818cf8', cursor: 'pointer', borderRadius: '8px' }}
+                style={{ background: 'transparent', border: 'none', padding: '0.4rem', color: '#818cf8', cursor: 'pointer', borderRadius: '8px', flexShrink: 0 }}
                 className="sparkle-pulse"
               >
-                <Sparkles size={17} />
+                <Sparkles size={18} />
               </button>
 
               <input
@@ -526,8 +543,8 @@ export function ChatPage() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask anything across your vectorized documents and visuals..."
-                style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#f8fafc', fontSize: '0.875rem', padding: '0.4rem' }}
+                placeholder="Ask anything across your knowledge base..."
+                style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', color: '#f8fafc', fontSize: '1rem', padding: '0.4rem 0.2rem' }}
                 disabled={loading || streaming}
               />
 
@@ -544,7 +561,8 @@ export function ChatPage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  flexShrink: 0
                 }}
               >
                 {streaming ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
@@ -556,17 +574,16 @@ export function ChatPage() {
 
       </div>
 
-      {/* Side-by-Side Source Inspector Split Drawer */}
+      {/* Side-by-Side / Mobile Overlay Source Inspector Drawer */}
+      {inspectorOpen && (
+        <div 
+          className="source-inspector-backdrop"
+          onClick={() => setInspectorOpen(false)}
+        />
+      )}
+
       {inspectorOpen && activeSource && (
-        <aside style={{ 
-          width: '360px', 
-          borderLeft: '1px solid rgba(255,255,255,0.08)', 
-          background: '#0c0f17', 
-          display: 'flex', 
-          flexDirection: 'column', 
-          zIndex: 40, 
-          flexShrink: 0 
-        }} className="drawer-transition">
+        <aside className="source-inspector-drawer drawer-transition">
           
           <div style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#090b10' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
@@ -582,9 +599,10 @@ export function ChatPage() {
             </div>
             <button 
               onClick={() => setInspectorOpen(false)}
-              style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
+              style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '6px' }}
+              title="Close inspector"
             >
-              <X size={18} />
+              <X size={20} />
             </button>
           </div>
 
@@ -598,7 +616,7 @@ export function ChatPage() {
               </p>
             </div>
 
-            <div style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.06)', padding: '1rem', borderRadius: '12px', fontFamily: 'monospace', fontSize: '0.75rem', color: '#e2e8f0', lineHeight: 1.6 }}>
+            <div style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.06)', padding: '1rem', borderRadius: '12px', fontFamily: 'monospace', fontSize: '0.75rem', color: '#e2e8f0', lineHeight: 1.6, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
               {activeSource.content}
             </div>
 
@@ -620,7 +638,7 @@ export function ChatPage() {
                 navigator.clipboard.writeText(activeSource.content);
                 alert('Passage text copied!');
               }}
-              style={{ width: '100%', padding: '0.5rem', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+              style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
             >
               📋 Copy Raw Chunk
             </button>

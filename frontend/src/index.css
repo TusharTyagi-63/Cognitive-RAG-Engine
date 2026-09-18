@@ -321,31 +321,33 @@ a:hover {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1rem 1.5rem;
+    padding: 0.75rem 1.25rem;
+    height: 56px;
     border-bottom: 1px solid var(--border-light);
-    background: rgba(0, 0, 0, 0.4);
+    background: #090b10;
     backdrop-filter: blur(10px);
-    z-index: 40;
+    z-index: 80;
+    box-sizing: border-box;
   }
 
   .main-content {
-    padding: 1rem;
-    /* Adjust for mobile header height */
-    height: calc(100vh - 65px);
+    padding: 0 !important;
+    height: calc(100vh - 56px);
+    height: calc(100dvh - 56px);
   }
 
   /* Adjust typography for mobile */
   .dashboard-header h1 {
-    font-size: 2rem !important;
+    font-size: 1.4rem !important;
   }
   
   .upload-card-padding {
-    padding: 2rem 1rem !important;
+    padding: 1.5rem 1rem !important;
   }
 
   .login-card {
-    padding: 2rem 1.5rem !important;
-    margin: 0 1rem;
+    padding: 1.75rem 1.25rem !important;
+    margin: 0 0.75rem;
   }
 }
 
@@ -356,4 +358,150 @@ a:hover {
   gap: 1rem;
   width: 100%;
   max-width: 400px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Responsive Utility Classes for Chat & Dashboard                            */
+/* -------------------------------------------------------------------------- */
+
+/* Responsive Dashboard Container */
+.dashboard-container {
+  height: 100%;
+  overflow-y: auto;
+  padding: 2rem 2.5rem;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 1rem 0.85rem !important;
+  }
+}
+
+/* Metric Cards Grid */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .metric-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Chat Message Bubbles */
+.chat-bubble-user {
+  max-width: 82%;
+  padding: 1rem 1.25rem;
+  border-radius: 18px 18px 4px 18px;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  box-shadow: 0 4px 18px rgba(99, 102, 241, 0.25);
+  line-height: 1.65;
+  color: #fff;
+  font-size: 0.925rem;
+  word-break: break-word;
+}
+
+.chat-bubble-assistant {
+  max-width: 88%;
+  padding: 1.1rem 1.35rem;
+  border-radius: 18px 18px 18px 4px;
+  background: rgba(18, 21, 31, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+  line-height: 1.65;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  font-size: 0.925rem;
+  color: #f1f5f9;
+  word-break: break-word;
+}
+
+@media (max-width: 768px) {
+  .chat-bubble-user {
+    max-width: 92%;
+    padding: 0.85rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .chat-bubble-assistant {
+    max-width: 96%;
+    padding: 0.9rem 1rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* Source Inspector Responsive Split / Overlay */
+.source-inspector-drawer {
+  width: 360px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0c0f17;
+  display: flex;
+  flex-direction: column;
+  z-index: 40;
+  flex-shrink: 0;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.source-inspector-backdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .source-inspector-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 88vw;
+    max-width: 380px;
+    height: 100vh;
+    height: 100dvh;
+    z-index: 200;
+    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.85);
+  }
+
+  .source-inspector-backdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 190;
+    animation: fadeIn 0.2s ease-out;
+  }
+}
+
+/* Visibility helpers */
+@media (max-width: 640px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 641px) {
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+/* Smooth Touch Scrolling */
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.touch-scroll::-webkit-scrollbar {
+  display: none;
 }

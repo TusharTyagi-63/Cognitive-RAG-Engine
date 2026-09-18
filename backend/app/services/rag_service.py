@@ -136,6 +136,8 @@ Format your response using clean, readable Markdown."""
                 sources.append({
                     "document_id": metadata.get("document_id"),
                     "chunk_index": metadata.get("chunk_index"),
+                    "content": text,
+                    "score": hit.get("score", 0.95),
                 })
             context_block = "\n".join(context_pieces)
 

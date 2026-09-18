@@ -70,12 +70,31 @@ export function Layout() {
             Cognitive RAG
           </h1>
         </div>
-        <button 
-          onClick={() => setIsMobileSidebarOpen(true)}
-          style={{ background: 'transparent', padding: '0.5rem', border: 'none', cursor: 'pointer' }}
-        >
-          <Menu size={22} color="var(--text-main)" />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <Link
+            to="/chat/new"
+            style={{
+              background: 'rgba(99, 102, 241, 0.15)',
+              border: '1px solid rgba(99, 102, 241, 0.3)',
+              borderRadius: '8px',
+              padding: '0.4rem',
+              color: '#818cf8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            title="Start new chat"
+          >
+            <MessageSquare size={18} />
+          </Link>
+          <button 
+            onClick={() => setIsMobileSidebarOpen(true)}
+            style={{ background: 'transparent', padding: '0.4rem', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            aria-label="Open Navigation Menu"
+          >
+            <Menu size={22} color="var(--text-main)" />
+          </button>
+        </div>
       </div>
 
       {/* Sidebar Overlay (Mobile) */}

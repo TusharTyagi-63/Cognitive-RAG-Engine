@@ -35,6 +35,7 @@ async def upload_document(
         message="Document uploaded successfully"
     )
 
+@router.get("", response_model=DocumentListResponse, include_in_schema=False)
 @router.get("/", response_model=DocumentListResponse, summary="List your documents")
 async def list_documents(
     current_user: Annotated[User, Depends(get_current_user)],

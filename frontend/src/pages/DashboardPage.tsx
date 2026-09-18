@@ -131,13 +131,13 @@ export function DashboardPage() {
   const estimatedVectors = documents.length > 0 ? documents.length * 64 : 0;
 
   return (
-    <div className="custom-scrollbar" style={{ height: '100%', overflowY: 'auto', padding: '2rem 2.5rem' }}>
-      <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div className="dashboard-container custom-scrollbar">
+      <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', letterSpacing: '-0.5px' }}>
+            <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 700, color: '#f8fafc', letterSpacing: '-0.5px' }}>
               Knowledge Vault & Insights
             </h1>
             <p style={{ margin: '0.25rem 0 0 0', color: '#94a3b8', fontSize: '0.85rem' }}>
@@ -168,29 +168,29 @@ export function DashboardPage() {
         </div>
 
         {/* 4 Metric Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
-          <div className="glass-surface" style={{ padding: '1.25rem', borderRadius: '16px' }}>
+        <div className="metric-grid">
+          <div className="glass-surface" style={{ padding: '1.15rem', borderRadius: '16px' }}>
             <p style={{ margin: 0, fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94a3b8' }}>Total Documents</p>
-            <p style={{ margin: '0.35rem 0 0 0', fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc' }}>{documents.length}</p>
-            <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>Across all ingested formats</p>
+            <p style={{ margin: '0.35rem 0 0 0', fontSize: '1.65rem', fontWeight: 700, color: '#f8fafc' }}>{documents.length}</p>
+            <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.725rem', color: '#64748b' }}>Across all ingested formats</p>
           </div>
 
-          <div className="glass-surface" style={{ padding: '1.25rem', borderRadius: '16px' }}>
+          <div className="glass-surface" style={{ padding: '1.15rem', borderRadius: '16px' }}>
             <p style={{ margin: 0, fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94a3b8' }}>Vector Chunks</p>
-            <p style={{ margin: '0.35rem 0 0 0', fontSize: '1.75rem', fontWeight: 700, color: '#818cf8' }}>{estimatedVectors > 0 ? estimatedVectors : '0'}</p>
-            <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>Cosine similarity indexed</p>
+            <p style={{ margin: '0.35rem 0 0 0', fontSize: '1.65rem', fontWeight: 700, color: '#818cf8' }}>{estimatedVectors > 0 ? estimatedVectors : '0'}</p>
+            <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.725rem', color: '#64748b' }}>Cosine similarity indexed</p>
           </div>
 
-          <div className="glass-surface" style={{ padding: '1.25rem', borderRadius: '16px' }}>
+          <div className="glass-surface" style={{ padding: '1.15rem', borderRadius: '16px' }}>
             <p style={{ margin: 0, fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94a3b8' }}>Vision OCR Files</p>
-            <p style={{ margin: '0.35rem 0 0 0', fontSize: '1.75rem', fontWeight: 700, color: '#c084fc' }}>{imageCount} Images</p>
-            <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>Parsed via Gemini Vision AI</p>
+            <p style={{ margin: '0.35rem 0 0 0', fontSize: '1.65rem', fontWeight: 700, color: '#c084fc' }}>{imageCount} Images</p>
+            <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.725rem', color: '#64748b' }}>Parsed via Gemini Vision AI</p>
           </div>
 
-          <div className="glass-surface" style={{ padding: '1.25rem', borderRadius: '16px' }}>
+          <div className="glass-surface" style={{ padding: '1.15rem', borderRadius: '16px' }}>
             <p style={{ margin: 0, fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94a3b8' }}>Avg Ingestion Speed</p>
-            <p style={{ margin: '0.35rem 0 0 0', fontSize: '1.75rem', fontWeight: 700, color: '#34d399' }}>1.2s</p>
-            <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>Chunking to vector store</p>
+            <p style={{ margin: '0.35rem 0 0 0', fontSize: '1.65rem', fontWeight: 700, color: '#34d399' }}>1.2s</p>
+            <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.725rem', color: '#64748b' }}>Chunking to vector store</p>
           </div>
         </div>
 
@@ -365,37 +365,38 @@ export function DashboardPage() {
                       display: 'flex', 
                       alignItems: 'center', 
                       justifyContent: 'space-between', 
-                      padding: '1rem 1.5rem', 
+                      padding: '0.85rem 1.15rem', 
                       borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      transition: 'background 0.15s'
+                      transition: 'background 0.15s',
+                      gap: '0.5rem'
                     }}
                     onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', overflow: 'hidden' }}>
-                      <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: badgeBg, color: badgeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.7rem', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', overflow: 'hidden', minWidth: 0, flex: 1 }}>
+                      <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: badgeBg, color: badgeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.7rem', flexShrink: 0 }}>
                         {ext.substring(0, 4)}
                       </div>
 
-                      <div style={{ overflow: 'hidden' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <p style={{ margin: 0, fontWeight: 600, fontSize: '0.85rem', color: '#f8fafc', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                      <div style={{ overflow: 'hidden', minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
+                          <p style={{ margin: 0, fontWeight: 600, fontSize: '0.825rem', color: '#f8fafc', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                             {doc.filename}
                           </p>
                           {isImage && (
-                            <span style={{ padding: '2px 6px', borderRadius: '4px', background: 'rgba(168, 85, 247, 0.2)', color: '#c084fc', fontSize: '0.65rem', fontWeight: 600 }}>
+                            <span style={{ padding: '2px 6px', borderRadius: '4px', background: 'rgba(168, 85, 247, 0.2)', color: '#c084fc', fontSize: '0.625rem', fontWeight: 600, flexShrink: 0 }}>
                               Vision AI
                             </span>
                           )}
                         </div>
-                        <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.725rem', color: '#64748b' }}>
+                        <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.7rem', color: '#64748b', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                           {(doc.file_size / 1024).toFixed(1)} KB • Ingested {doc.upload_timestamp ? new Date(doc.upload_timestamp).toLocaleDateString() : 'recently'}
                         </p>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
-                      <span style={{ padding: '3px 8px', borderRadius: '100px', background: 'rgba(16, 185, 129, 0.12)', color: '#34d399', fontSize: '0.7rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                      <span className="hide-mobile" style={{ padding: '3px 8px', borderRadius: '100px', background: 'rgba(16, 185, 129, 0.12)', color: '#34d399', fontSize: '0.7rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                         <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#34d399' }} />
                         Indexed
                       </span>
