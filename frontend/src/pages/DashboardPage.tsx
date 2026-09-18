@@ -156,7 +156,7 @@ export function DashboardPage() {
                     <div style={{ height: '100%', background: 'linear-gradient(90deg, var(--primary), var(--accent))', width: `${uploadProgress}%`, transition: 'width 0.2s', boxShadow: '0 0 10px var(--accent)' }} />
                   </div>
                 )}
-                <p style={{ margin: '0.5rem 0 0 0', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Supports PDF, Word, PPT, Excel, Images, HTML, JSON, code files & more (up to 10MB).</p>
+                <p style={{ margin: '0.5rem 0 0 0', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Supports PDF, Word, PPT, Excel, Images, HTML, JSON, code files & more (up to 5MB).</p>
               </>
             )}
           </div>

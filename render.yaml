@@ -1,0 +1,62 @@
+services:
+  # 1. PostgreSQL Database
+  - type: pserv
+    name: rag-database
+    env: postgres
+    plan: free
+    
+  # 2. FastAPI Backend
+  - type: web
+    name: rag-backend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    disk:
+      name: rag-data
+      mountPath: /app/backend/data
+      sizeGB: 1
+    envVars:
+      - key: POSTGRES_HOST
+        fromService:
+          type: pserv
+          name: rag-database
+          property: host
+      - key: POSTGRES_PORT
+        fromService:
+          type: pserv
+          name: rag-database
+          property: port
+      - key: POSTGRES_DB
+        fromService:
+          type: pserv
+          name: rag-database
+          property: database
+      - key: POSTGRES_USER
+        fromService:
+          type: pserv
+          name: rag-database
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromService:
+          type: pserv
+          name: rag-database
+          property: password
+      - key: GEMINI_API_KEY
+        sync: false # You will enter this manually in the Render dashboard
+
+  # 3. React Frontend
+  - type: web
+    name: rag-frontend
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: rag-backend
+          property: hosturl
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
