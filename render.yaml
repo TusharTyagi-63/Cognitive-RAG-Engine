@@ -1,0 +1,56 @@
+databases:
+  - name: rag-database
+    plan: free
+
+services:
+  # 1. FastAPI Backend
+  - type: web
+    name: rag-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: alembic upgrade head && python -m backend.app.main
+    plan: free
+    # Note: Free tier does not support Persistent Disks.
+    # Qdrant vector data and uploaded files will be reset on every deploy.
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: rag-database
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: rag-database
+          property: port
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: rag-database
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: rag-database
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: rag-database
+          property: password
+      - key: GEMINI_API_KEY
+        sync: false # You will enter this manually in the Render dashboard
+
+  # 2. React Frontend
+  - type: web
+    name: rag-frontend
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: rag-backend
+          property: host
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
