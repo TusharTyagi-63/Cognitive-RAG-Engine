@@ -9,10 +9,12 @@ Includes an Intent Router that dynamically selects the retrieval strategy:
 from typing import Dict, Any, List
 from uuid import UUID
 import asyncio
+import time
 
 from backend.app.services.vector_db_service import VectorDBService
 from backend.app.services.llm_service import LLMService
 from backend.app.services.reranker_service import RerankerService
+from backend.app.services.telemetry_service import ChatTelemetryService
 
 import logging
 logger = logging.getLogger(__name__)
@@ -57,17 +59,20 @@ Format your response using clean, readable Markdown."""
         1. Classifies intent (SUMMARY vs SEARCH).
         2. Retrieves context using the appropriate strategy.
         3. Calls LLM with full context + conversation history.
-        4. Returns answer and sources.
+        4. Returns answer, sources, and latency metrics.
         """
+        req_start = time.perf_counter()
+        retrieval_start = time.perf_counter()
+        retrieval_mode = "dense_vector"
+
         intent = cls._classify_intent(question)
         logger.info(f"Classified intent as: {intent} for question: '{question}'")
 
         if intent == "SUMMARY":
-            # Full document retrieval path — run in thread to avoid blocking event loop
+            retrieval_mode = "summary_all"
             results = await asyncio.to_thread(VectorDBService.get_all_chunks, user_id, 40, document_ids)
             system_msg = cls.SUMMARY_SYSTEM_PROMPT
         else:
-            # Dense vector search — run in thread to avoid blocking event loop
             results = await asyncio.to_thread(VectorDBService.search_similar, question, user_id, 5, document_ids)
             system_msg = cls.SYSTEM_PROMPT
 
@@ -100,6 +105,7 @@ Format your response using clean, readable Markdown."""
                         if fallback_pieces:
                             context_block = "\n".join(fallback_pieces)
                             results = True
+                            retrieval_mode = "fallback_disk"
                 except Exception as e:
                     logger.error(f"Fallback extraction failed: {e}")
         else:
@@ -112,9 +118,13 @@ Format your response using clean, readable Markdown."""
                 sources.append({
                     "document_id": metadata.get("document_id"),
                     "chunk_index": metadata.get("chunk_index"),
-                    "text_snippet": text[:100] + "..."
+                    "content": text,
+                    "text_snippet": text[:100] + "...",
+                    "score": hit.get("score", 0.95),
                 })
             context_block = "\n".join(context_pieces)
+
+        retrieval_time_ms = round((time.perf_counter() - retrieval_start) * 1000, 2)
 
         # Append document list to system prompt
         if user_documents:
@@ -123,14 +133,71 @@ Format your response using clean, readable Markdown."""
         user_prompt = f"Document Context:\n{context_block}\n\nUser Question:\n{question}"
 
         # Generate Answer
+        model_name = LLMService.get_model()
+        llm_start = time.perf_counter()
+
         if not results and not chat_history:
             answer = "I do not have any documents to search through. Please upload some documents first."
+            llm_time_ms = 0.0
         else:
-            answer = await LLMService.generate_response(system_msg, user_prompt, history=chat_history)
+            try:
+                answer = await LLMService.generate_response(system_msg, user_prompt, history=chat_history)
+                llm_time_ms = round((time.perf_counter() - llm_start) * 1000, 2)
+            except Exception as e:
+                total_time_ms = round((time.perf_counter() - req_start) * 1000, 2)
+                import traceback
+                ChatTelemetryService.record_event({
+                    "user_id": str(user_id),
+                    "question": question,
+                    "intent": intent,
+                    "retrieval_mode": retrieval_mode,
+                    "retrieval_time_ms": retrieval_time_ms,
+                    "chunks_retrieved_count": len(sources),
+                    "model": model_name,
+                    "total_request_time_ms": total_time_ms,
+                    "status": "ERROR",
+                    "error": str(e),
+                    "traceback": traceback.format_exc()
+                })
+                raise
+
+        total_time_ms = round((time.perf_counter() - req_start) * 1000, 2)
+
+        metrics = {
+            "retrieval_time_ms": retrieval_time_ms,
+            "llm_generation_time_ms": llm_time_ms,
+            "total_request_time_ms": total_time_ms,
+            "model": model_name,
+            "chunks_count": len(sources)
+        }
+
+        ChatTelemetryService.record_event({
+            "user_id": str(user_id),
+            "question": question,
+            "intent": intent,
+            "retrieval_mode": retrieval_mode,
+            "retrieval_time_ms": retrieval_time_ms,
+            "chunks_retrieved_count": len(sources),
+            "chunks_summary": [
+                {
+                    "doc_id": s.get("document_id"),
+                    "score": s.get("score"),
+                    "preview": s.get("content", s.get("text_snippet", ""))[:120]
+                } for s in sources[:5]
+            ],
+            "context_chars": len(context_block),
+            "model": model_name,
+            "time_to_first_token_ms": None,
+            "llm_generation_time_ms": llm_time_ms,
+            "total_request_time_ms": total_time_ms,
+            "response_chars": len(answer),
+            "status": "SUCCESS"
+        })
 
         return {
             "answer": answer,
-            "sources": sources
+            "sources": sources,
+            "metrics": metrics
         }
 
     @classmethod
@@ -138,12 +205,17 @@ Format your response using clean, readable Markdown."""
         """
         Streaming version of query().
         Retrieves context then streams LLM response token-by-token.
-        Also yields a final [SOURCES] event with source metadata.
+        Yields tokens, [METRICS], [SOURCES], and [DONE].
         """
         import json
+        req_start = time.perf_counter()
+        retrieval_start = time.perf_counter()
+        retrieval_mode = "dense_vector"
+
         intent = cls._classify_intent(question)
 
         if intent == "SUMMARY":
+            retrieval_mode = "summary_all"
             results = await asyncio.to_thread(VectorDBService.get_all_chunks, user_id, 40, document_ids)
             system_msg = cls.SUMMARY_SYSTEM_PROMPT
         else:
@@ -178,6 +250,7 @@ Format your response using clean, readable Markdown."""
                         if fallback_pieces:
                             context_block = "\n".join(fallback_pieces)
                             results = True
+                            retrieval_mode = "fallback_disk"
                 except Exception as e:
                     logger.error(f"Fallback stream extraction failed: {e}")
         else:
@@ -195,23 +268,104 @@ Format your response using clean, readable Markdown."""
                 })
             context_block = "\n".join(context_pieces)
 
+        retrieval_time_ms = round((time.perf_counter() - retrieval_start) * 1000, 2)
+
         if user_documents:
             system_msg += f"\n\nSystem Info: The user has uploaded {len(user_documents)} document(s): {', '.join(user_documents)}."
 
         user_prompt = f"Document Context:\n{context_block}\n\nUser Question:\n{question}"
+        model_name = LLMService.get_model()
 
         if not results and not chat_history:
+            total_req_time_ms = round((time.perf_counter() - req_start) * 1000, 2)
+            ChatTelemetryService.record_event({
+                "user_id": str(user_id),
+                "question": question,
+                "intent": intent,
+                "retrieval_mode": retrieval_mode,
+                "retrieval_time_ms": retrieval_time_ms,
+                "chunks_retrieved_count": 0,
+                "model": model_name,
+                "time_to_first_token_ms": 0,
+                "llm_generation_time_ms": 0,
+                "total_request_time_ms": total_req_time_ms,
+                "response_chars": 0,
+                "status": "SUCCESS",
+                "notes": "No documents available"
+            })
             yield "data: I do not have any documents to search through. Please upload some documents first.\n\n"
             yield "data: [DONE]\n\n"
             return
 
+        llm_start = time.perf_counter()
+        first_token_time = None
         full_response = ""
-        async for token in LLMService.stream_response(system_msg, user_prompt, history=chat_history):
-            full_response += token
-            # Escape newlines for SSE format
-            safe_token = token.replace("\n", "\\n")
-            yield f"data: {safe_token}\n\n"
 
-        # Send sources as a final event
-        yield f"data: [SOURCES]{json.dumps(sources)}\n\n"
-        yield "data: [DONE]\n\n"
+        try:
+            async for token in LLMService.stream_response(system_msg, user_prompt, history=chat_history):
+                if first_token_time is None:
+                    first_token_time = time.perf_counter()
+                full_response += token
+                # Escape newlines for SSE format
+                safe_token = token.replace("\n", "\\n")
+                yield f"data: {safe_token}\n\n"
+
+            llm_end = time.perf_counter()
+            ttft_ms = round(((first_token_time or llm_end) - llm_start) * 1000, 2)
+            llm_gen_ms = round((llm_end - llm_start) * 1000, 2)
+            total_time_ms = round((llm_end - req_start) * 1000, 2)
+
+            telemetry_payload = {
+                "user_id": str(user_id),
+                "question": question,
+                "intent": intent,
+                "retrieval_mode": retrieval_mode,
+                "retrieval_time_ms": retrieval_time_ms,
+                "chunks_retrieved_count": len(sources),
+                "chunks_summary": [
+                    {
+                        "doc_id": s.get("document_id"),
+                        "score": s.get("score"),
+                        "preview": s.get("content", "")[:120]
+                    } for s in sources[:5]
+                ],
+                "context_chars": len(context_block),
+                "model": model_name,
+                "time_to_first_token_ms": ttft_ms,
+                "llm_generation_time_ms": llm_gen_ms,
+                "total_request_time_ms": total_time_ms,
+                "response_chars": len(full_response),
+                "status": "SUCCESS"
+            }
+            ChatTelemetryService.record_event(telemetry_payload)
+
+            # Yield metrics event before [SOURCES] and [DONE]
+            metrics_event = {
+                "ttft_ms": ttft_ms,
+                "llm_time_ms": llm_gen_ms,
+                "total_time_ms": total_time_ms,
+                "retrieval_time_ms": retrieval_time_ms,
+                "model": model_name,
+                "chunks_count": len(sources)
+            }
+            yield f"data: [METRICS]{json.dumps(metrics_event)}\n\n"
+            yield f"data: [SOURCES]{json.dumps(sources)}\n\n"
+            yield "data: [DONE]\n\n"
+
+        except Exception as e:
+            err_time_ms = round((time.perf_counter() - req_start) * 1000, 2)
+            import traceback
+            ChatTelemetryService.record_event({
+                "user_id": str(user_id),
+                "question": question,
+                "intent": intent,
+                "retrieval_mode": retrieval_mode,
+                "retrieval_time_ms": retrieval_time_ms,
+                "chunks_retrieved_count": len(sources),
+                "model": model_name,
+                "total_request_time_ms": err_time_ms,
+                "status": "ERROR",
+                "error": str(e),
+                "traceback": traceback.format_exc()
+            })
+            raise

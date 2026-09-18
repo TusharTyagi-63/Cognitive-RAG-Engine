@@ -197,7 +197,7 @@ async def stream_message(
                             logging.getLogger(__name__).error(f"Failed to save AI message: {e}")
                         yield chunk
                         return
-                    elif not data.startswith("[SOURCES]"):
+                    elif not data.startswith("[SOURCES]") and not data.startswith("[METRICS]"):
                         # Accumulate the actual text (convert escaped newlines back)
                         collected[0] += data.replace("\\n", "\n")
                 yield chunk
@@ -223,3 +223,42 @@ async def delete_chat_session(
     await ChatService.delete_session(session, current_user.id, session_id)
     await session.commit()
     return success_response(message="Chat session deleted successfully")
+
+
+# ── Chat Telemetry & Latency Analysis ──────────────────────────────────────────
+
+@router.get("/telemetry/recent", summary="Get recent chat telemetry & model response latency")
+async def get_recent_telemetry(
+    limit: int = 50,
+    current_user: Annotated[User, Depends(get_current_user)] = None
+):
+    """
+    Returns captured telemetry events for recent chat requests.
+    Includes time-to-first-token, model generation latency, context size, and retrieval metrics.
+    """
+    from backend.app.services.telemetry_service import ChatTelemetryService
+    events = ChatTelemetryService.get_recent(limit=limit)
+    return success_response(data=events)
+
+
+@router.get("/telemetry/summary", summary="Get aggregated chat telemetry summary")
+async def get_telemetry_summary(
+    current_user: Annotated[User, Depends(get_current_user)] = None
+):
+    """
+    Returns aggregated performance statistics: average TTFT, average total latency,
+    total queries, error rate, and active models.
+    """
+    from backend.app.services.telemetry_service import ChatTelemetryService
+    summary = ChatTelemetryService.get_summary()
+    return success_response(data=summary)
+
+
+@router.delete("/telemetry/clear", summary="Clear chat telemetry")
+async def clear_telemetry(
+    current_user: Annotated[User, Depends(get_current_user)] = None
+):
+    """Resets in-memory and on-disk chat telemetry."""
+    from backend.app.services.telemetry_service import ChatTelemetryService
+    ChatTelemetryService.clear()
+    return success_response(message="Chat telemetry cleared successfully")

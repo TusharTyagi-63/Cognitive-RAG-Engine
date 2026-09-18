@@ -49,7 +49,7 @@ const CodeBlock = ({ inline, className, children, ...props }: any) => {
 export function ChatPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [messages, setMessages] = useState<{ role: string, content: string, sources?: any[] }[]>([]);
+  const [messages, setMessages] = useState<{ role: string, content: string, sources?: any[], metrics?: any }[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [streaming, setStreaming] = useState(false);
@@ -169,6 +169,18 @@ export function ChatPage() {
 
           if (data === '[DONE]') break;
           
+          if (data.startsWith('[METRICS]')) {
+            try {
+              const metrics = JSON.parse(data.slice(9));
+              setMessages(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1] = { ...updated[updated.length - 1], metrics };
+                return updated;
+              });
+            } catch(e) { console.error("Failed to parse metrics", e); }
+            continue;
+          }
+
           if (data.startsWith('[SOURCES]')) {
             try {
               const sources = JSON.parse(data.slice(9));
@@ -449,6 +461,30 @@ export function ChatPage() {
                             <Download size={13} />
                             Export MD
                           </button>
+                          {msg.metrics && (
+                            <>
+                              <span>•</span>
+                              <span 
+                                title={`Latency Breakdown:\n• TTFT: ${Math.round(msg.metrics.ttft_ms)}ms\n• Generation: ${Math.round(msg.metrics.llm_time_ms)}ms\n• Retrieval: ${Math.round(msg.metrics.retrieval_time_ms)}ms\n• Total: ${Math.round(msg.metrics.total_time_ms)}ms\n• Model: ${msg.metrics.model}\n• Chunks: ${msg.metrics.chunks_count}`}
+                                style={{ 
+                                  background: 'rgba(16, 185, 129, 0.1)', 
+                                  border: '1px solid rgba(16, 185, 129, 0.25)', 
+                                  color: '#34d399', 
+                                  padding: '0.15rem 0.45rem', 
+                                  borderRadius: '999px', 
+                                  fontSize: '0.7rem', 
+                                  fontFamily: 'monospace',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.2rem',
+                                  cursor: 'help'
+                                }}
+                              >
+                                <span>⚡ {(msg.metrics.total_time_ms / 1000).toFixed(2)}s</span>
+                                <span style={{ opacity: 0.7 }} className="hide-mobile">(TTFT {Math.round(msg.metrics.ttft_ms)}ms)</span>
+                              </span>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
