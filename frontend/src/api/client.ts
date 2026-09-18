@@ -1,6 +1,19 @@
 import axios from 'axios';
 
 let savedUrl = localStorage.getItem('API_URL');
+
+// If savedUrl was accidentally set to localhost while running on a public website (Render), auto-clear it
+if (
+  savedUrl &&
+  savedUrl.includes('localhost') &&
+  typeof window !== 'undefined' &&
+  window.location.hostname !== 'localhost' &&
+  window.location.hostname !== '127.0.0.1'
+) {
+  localStorage.removeItem('API_URL');
+  savedUrl = null;
+}
+
 let envUrl = import.meta.env.VITE_API_URL || '';
 
 // Ignore internal Docker / Render service names that don't have a public TLD
@@ -8,7 +21,12 @@ if (envUrl === 'rag-backend' || (envUrl && !envUrl.includes('.') && !envUrl.incl
   envUrl = '';
 }
 
-let activeUrl = savedUrl || envUrl || 'http://localhost:8000';
+const DEFAULT_BACKEND_URL =
+  typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:8000'
+    : 'https://rag-backend-rxrx.onrender.com';
+
+let activeUrl = savedUrl || envUrl || DEFAULT_BACKEND_URL;
 if (activeUrl && !activeUrl.startsWith('http')) {
   activeUrl = `https://${activeUrl}`;
 }

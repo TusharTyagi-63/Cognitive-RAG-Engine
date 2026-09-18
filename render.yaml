@@ -47,7 +47,7 @@ services:
     rootDir: frontend
     envVars:
       - key: VITE_API_URL
-        sync: false
+        value: https://rag-backend-rxrx.onrender.com
     routes:
       - type: rewrite
         source: /*
