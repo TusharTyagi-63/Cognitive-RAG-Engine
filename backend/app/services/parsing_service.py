@@ -127,11 +127,33 @@ class ParsingService:
 
     @staticmethod
     def _parse_pdf(file_path: Path) -> str:
-        """Extracts text from a PDF file using PyMuPDF."""
+        """
+        Extracts text from a PDF file using PyMuPDF.
+        Automatically runs Gemini Vision OCR on scanned receipts, application forms,
+        and image-based PDF pages that lack a selectable text layer.
+        """
         text_blocks = []
         with pymupdf.open(file_path) as doc:
-            for page in doc:
-                text_blocks.append(page.get_text())
+            for i, page in enumerate(doc):
+                txt = page.get_text().strip()
+                if len(txt) > 30:
+                    text_blocks.append(f"[Page {i+1}]:\n{txt}")
+                else:
+                    # Page has no text layer or very sparse text (scanned receipt/image)
+                    try:
+                        logger.info(f"PDF '{file_path.name}' page {i+1} has no text layer. Running Gemini Vision OCR...")
+                        pix = page.get_pixmap(dpi=150)
+                        img_bytes = pix.tobytes("png")
+                        ocr_txt = ParsingService._ocr_image_bytes(img_bytes, mime_type="image/png", is_page_ocr=True)
+                        if ocr_txt and ocr_txt.strip():
+                            text_blocks.append(f"[Page {i+1} - Scanned OCR]:\n{ocr_txt.strip()}")
+                        elif txt:
+                            text_blocks.append(f"[Page {i+1}]:\n{txt}")
+                    except Exception as e:
+                        logger.warning(f"Vision OCR fallback failed for page {i+1}: {e}")
+                        if txt:
+                            text_blocks.append(f"[Page {i+1}]:\n{txt}")
+
         return "\n\n".join(text_blocks)
 
     @staticmethod
@@ -267,40 +289,42 @@ class ParsingService:
             return f.read()
 
     @staticmethod
-    def _parse_image(file_path: Path) -> str:
+    def _ocr_image_bytes(image_bytes: bytes, mime_type: str = "image/png", is_page_ocr: bool = True) -> str:
         """
-        Extracts text and descriptions from an image using Google Gemini Vision.
-        This handles text extraction (OCR), diagram reading, chart analysis,
-        and general image description — far superior to traditional OCR.
+        Runs Google Gemini Vision OCR on raw image bytes.
+        Handles scanned PDFs, receipts, forms, invoices, and standalone images.
         """
         import base64
-        import mimetypes
         from openai import OpenAI
         from backend.app.core.config import settings
 
         if not settings.GEMINI_API_KEY:
-            raise BadRequestException("GEMINI_API_KEY is not configured. Cannot process images.")
+            logger.warning("GEMINI_API_KEY is not set. Cannot run Vision OCR.")
+            return ""
 
-        mime_type, _ = mimetypes.guess_type(str(file_path))
-        if not mime_type or not mime_type.startswith("image/"):
-            mime_type = "image/jpeg"
-
-        with open(file_path, "rb") as image_file:
-            base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+        base64_image = base64.b64encode(image_bytes).decode('utf-8')
 
         client = OpenAI(
             api_key=settings.GEMINI_API_KEY,
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
         )
 
-        prompt = (
-            "Analyze this image thoroughly. Extract ALL text visible in the image exactly as written. "
-            "If the image contains diagrams, charts, tables, or figures, describe them in detail "
-            "including all data points, labels, and relationships. "
-            "If it's a screenshot of code, extract the code exactly. "
-            "If it's a photograph, describe what you see in detail. "
-            "Format the output as clean, readable text."
-        )
+        if is_page_ocr:
+            prompt = (
+                "Extract ALL text visible on this scanned document or receipt exactly as written. "
+                "Preserve all transaction numbers, candidate details, examination names, amounts paid, "
+                "dates, reference IDs, table contents, headers, and key-value fields verbatim. "
+                "Do not summarize; output all text faithfully in clean Markdown format."
+            )
+        else:
+            prompt = (
+                "Analyze this image thoroughly. Extract ALL text visible in the image exactly as written. "
+                "If the image contains diagrams, charts, tables, or figures, describe them in detail "
+                "including all data points, labels, and relationships. "
+                "If it's a screenshot of code, extract the code exactly. "
+                "If it's a photograph, describe what you see in detail. "
+                "Format the output as clean, readable text."
+            )
 
         response = client.chat.completions.create(
             model="gemini-3.6-flash",
@@ -321,4 +345,23 @@ class ParsingService:
             max_tokens=2048
         )
 
-        return response.choices[0].message.content
+        return response.choices[0].message.content or ""
+
+    @staticmethod
+    def _parse_image(file_path: Path) -> str:
+        """
+        Extracts text and descriptions from an image using Google Gemini Vision.
+        This handles text extraction (OCR), diagram reading, chart analysis,
+        and general image description — far superior to traditional OCR.
+        """
+        import mimetypes
+
+        mime_type, _ = mimetypes.guess_type(str(file_path))
+        if not mime_type or not mime_type.startswith("image/"):
+            mime_type = "image/jpeg"
+
+        with open(file_path, "rb") as image_file:
+            img_bytes = image_file.read()
+
+        return ParsingService._ocr_image_bytes(img_bytes, mime_type=mime_type, is_page_ocr=False)
+

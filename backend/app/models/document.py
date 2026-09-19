@@ -23,7 +23,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, String, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, String, Text, LargeBinary, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -44,6 +44,8 @@ class Document(BaseModel):
     file_size        : Size in bytes (BigInteger for large files).
     content_type     : MIME type of the uploaded file.
     upload_timestamp : Server-side UTC timestamp of the upload.
+    extracted_text   : Extracted plaintext cached in PostgreSQL for durability across ephemeral restarts.
+    file_data        : Raw file bytes cached in PostgreSQL for permanent availability.
     """
 
     __tablename__ = "documents"
@@ -75,6 +77,16 @@ class Document(BaseModel):
         server_default=func.now(),
         nullable=False,
         comment="UTC timestamp of the upload.",
+    )
+    extracted_text: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Extracted plaintext cached in PostgreSQL for durability across ephemeral restarts.",
+    )
+    file_data: Mapped[bytes | None] = mapped_column(
+        LargeBinary,
+        nullable=True,
+        comment="Raw file bytes cached in PostgreSQL for permanent availability.",
     )
 
     # ── Relationships ──────────────────────────────────────────────────

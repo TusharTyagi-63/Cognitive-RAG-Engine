@@ -123,7 +123,7 @@ Requirements for Deep Synthesis:
         if not results:
             context_block = "No document content found."
             sources = []
-            # Resilient fallback: parse documents directly from disk if vector search was empty
+            # Resilient fallback: parse documents from PostgreSQL cache or disk
             if user_documents or document_ids:
                 try:
                     from backend.app.services.document_service import DocumentService
@@ -141,22 +141,28 @@ Requirements for Deep Synthesis:
 
                         fallback_pieces = []
                         for d in target_docs:
-                            fpath = DocumentService.get_document_path(d.id)
-                            if fpath.exists():
-                                txt = await asyncio.to_thread(ParsingService.extract_text, fpath, d.content_type, d.filename)
-                                if txt:
-                                    snippet = txt[:15000] if len(target_docs) == 1 else txt[:4000]
-                                    fallback_pieces.append(f"--- DOCUMENT: {d.filename} ---\n{snippet}\n")
-                                    sources.append({
-                                        "document_id": str(d.id),
-                                        "chunk_index": 0,
-                                        "content": snippet[:1000],
-                                        "score": 0.95
-                                    })
+                            txt = getattr(d, 'extracted_text', None)
+                            if not txt:
+                                fpath = DocumentService.get_document_path(d.id, doc=d)
+                                if fpath.exists():
+                                    txt = await asyncio.to_thread(ParsingService.extract_text, fpath, d.content_type, d.filename)
+                                    if txt and txt.strip():
+                                        d.extracted_text = txt
+                                        await db_session.commit()
+
+                            if txt and txt.strip():
+                                snippet = txt[:15000] if len(target_docs) == 1 else txt[:4000]
+                                fallback_pieces.append(f"--- DOCUMENT: {d.filename} ---\n{snippet}\n")
+                                sources.append({
+                                    "document_id": str(d.id),
+                                    "chunk_index": 0,
+                                    "content": snippet[:1000],
+                                    "score": 0.95
+                                })
                         if fallback_pieces:
                             context_block = "\n".join(fallback_pieces)
                             results = True
-                            retrieval_mode = "fallback_disk"
+                            retrieval_mode = "fallback_db"
                 except Exception as e:
                     logger.error(f"Fallback extraction failed: {e}")
         else:
@@ -191,7 +197,15 @@ Requirements for Deep Synthesis:
         llm_start = time.perf_counter()
 
         if not results and not chat_history:
-            answer = "I do not have any documents to search through. Please upload some documents first."
+            if document_ids and user_documents:
+                doc_names = ", ".join(user_documents)
+                answer = (
+                    f"⚠️ **Storage Notice for {doc_names}**:\n\n"
+                    f"This document was uploaded during a previous cloud session before server restart and its contents are no longer on the temporary disk. "
+                    f"Please delete and re-upload **{doc_names}** in the Knowledge Vault — it will now be permanently cached in the database and immediately searchable!"
+                )
+            else:
+                answer = "I do not have any active documents to search through. Please upload a document to your Knowledge Vault to get started."
             llm_time_ms = 0.0
         else:
             try:
@@ -311,7 +325,7 @@ Requirements for Deep Synthesis:
         if not results:
             context_block = "No document content found."
             sources = []
-            # Resilient fallback: parse documents directly from disk if vector search was empty
+            # Resilient fallback: parse documents from PostgreSQL cache or disk
             if user_documents or document_ids:
                 try:
                     from backend.app.services.document_service import DocumentService
@@ -329,22 +343,28 @@ Requirements for Deep Synthesis:
 
                         fallback_pieces = []
                         for d in target_docs:
-                            fpath = DocumentService.get_document_path(d.id)
-                            if fpath.exists():
-                                txt = await asyncio.to_thread(ParsingService.extract_text, fpath, d.content_type, d.filename)
-                                if txt:
-                                    snippet = txt[:15000] if len(target_docs) == 1 else txt[:4000]
-                                    fallback_pieces.append(f"--- DOCUMENT: {d.filename} ---\n{snippet}\n")
-                                    sources.append({
-                                        "document_id": str(d.id),
-                                        "chunk_index": 0,
-                                        "content": snippet[:1000],
-                                        "score": 0.95
-                                    })
+                            txt = getattr(d, 'extracted_text', None)
+                            if not txt:
+                                fpath = DocumentService.get_document_path(d.id, doc=d)
+                                if fpath.exists():
+                                    txt = await asyncio.to_thread(ParsingService.extract_text, fpath, d.content_type, d.filename)
+                                    if txt and txt.strip():
+                                        d.extracted_text = txt
+                                        await db_session.commit()
+
+                            if txt and txt.strip():
+                                snippet = txt[:15000] if len(target_docs) == 1 else txt[:4000]
+                                fallback_pieces.append(f"--- DOCUMENT: {d.filename} ---\n{snippet}\n")
+                                sources.append({
+                                    "document_id": str(d.id),
+                                    "chunk_index": 0,
+                                    "content": snippet[:1000],
+                                    "score": 0.95
+                                })
                         if fallback_pieces:
                             context_block = "\n".join(fallback_pieces)
                             results = True
-                            retrieval_mode = "fallback_disk"
+                            retrieval_mode = "fallback_db"
                 except Exception as e:
                     logger.error(f"Fallback stream extraction failed: {e}")
         else:
@@ -390,7 +410,17 @@ Requirements for Deep Synthesis:
                 "status": "SUCCESS",
                 "notes": "No documents available"
             })
-            yield "data: I do not have any documents to search through. Please upload some documents first.\n\n"
+            if document_ids and user_documents:
+                doc_names = ", ".join(user_documents)
+                msg = (
+                    f"⚠️ **Storage Notice for {doc_names}**:\n\n"
+                    f"This document was uploaded during a previous cloud session before server restart and its contents are no longer on the temporary disk. "
+                    f"Please delete and re-upload **{doc_names}** in the Knowledge Vault — it will now be permanently cached in the database and immediately searchable!"
+                )
+            else:
+                msg = "I do not have any active documents to search through. Please upload a document to your Knowledge Vault to get started."
+            yield f"data: {msg}\n\n"
+            yield f"data: [METRICS]{json.dumps(metrics)}\n\n"
             yield "data: [DONE]\n\n"
             return
 

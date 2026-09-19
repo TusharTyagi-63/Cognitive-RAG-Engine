@@ -104,6 +104,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         },
     )
 
+    # Ensure durable storage columns exist in PostgreSQL
+    try:
+        from sqlalchemy import text
+        from backend.app.database.connection import engine
+        async with engine.begin() as conn:
+            await conn.execute(text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS extracted_text TEXT;"))
+            await conn.execute(text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_data BYTEA;"))
+        logger.info("Persistent storage columns (extracted_text, file_data) verified in PostgreSQL.")
+    except Exception as e:
+        logger.warning(f"Could not verify document columns in DB: {e}")
+
     # Preload vector database client during startup
     try:
         from backend.app.services.vector_db_service import VectorDBService

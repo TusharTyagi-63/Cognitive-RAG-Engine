@@ -26,9 +26,22 @@ async def upload_document(
     session: Annotated[AsyncSession, Depends(get_db)]
 ):
     """
-    Uploads a file, saves it to disk, and records the metadata.
+    Uploads a file, saves bytes to PostgreSQL, saves to disk, and records the metadata.
+    Attempts immediate text extraction so extracted_text is ready immediately.
     """
+    import asyncio
     doc = await DocumentService.save_document(session, current_user.id, file)
+
+    try:
+        from backend.app.services.parsing_service import ParsingService
+        file_path = DocumentService.get_document_path(doc.id, doc=doc)
+        txt = await asyncio.to_thread(ParsingService.extract_text, file_path, doc.content_type, doc.filename)
+        if txt and txt.strip():
+            doc.extracted_text = txt
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).debug(f"Immediate parse skipped for background processing: {e}")
+
     await session.commit()
     return success_response(
         data=DocumentResponse.model_validate(doc).model_dump(),
@@ -43,9 +56,6 @@ async def list_documents(
 ):
     """
     Returns all documents uploaded by the authenticated user.
-    (Note: Using response_model directly without the success envelope here 
-    because we defined DocumentListResponse schema specifically for lists).
-    Wait, to keep it consistent, we can return DocumentListResponse directly.
     """
     docs = await DocumentService.get_user_documents(session, current_user.id)
     
@@ -74,21 +84,28 @@ async def get_document_content(
 ):
     """
     Returns the actual file content for viewing in the browser.
+    Restores transparently from PostgreSQL if the cloud container restarted.
     """
+    from fastapi import Response
     doc = await DocumentService.get_document_by_id(session, current_user.id, document_id)
-    file_path = DocumentService.get_document_path(doc.id)
+    file_path = DocumentService.get_document_path(doc.id, doc=doc)
     
-    # If the file doesn't exist on disk, we should handle it gracefully
-    if not file_path.exists():
+    if file_path.exists():
+        return FileResponse(
+            path=file_path, 
+            filename=doc.filename, 
+            media_type=doc.content_type,
+            content_disposition_type="inline"
+        )
+    elif getattr(doc, 'file_data', None):
+        return Response(
+            content=doc.file_data,
+            media_type=doc.content_type,
+            headers={"Content-Disposition": f'inline; filename="{doc.filename}"'}
+        )
+    else:
         from backend.app.utils.exceptions import NotFoundException
-        raise NotFoundException("Document file missing from disk.")
-        
-    return FileResponse(
-        path=file_path, 
-        filename=doc.filename, 
-        media_type=doc.content_type,
-        content_disposition_type="inline"
-    )
+        raise NotFoundException("Document file missing from cloud storage. Please re-upload.")
 
 from fastapi import BackgroundTasks
 
@@ -99,16 +116,21 @@ async def _process_in_background(document_id: UUID, user_id: UUID):
     from backend.app.services.vector_db_service import VectorDBService
     import asyncio
     
-    # We need a new session since the original one might be closed
     from backend.app.database.connection import async_session_factory
     async with async_session_factory() as session:
         doc = await DocumentService.get_document_by_id(session, user_id, document_id)
-        file_path = DocumentService.get_document_path(doc.id)
+        file_path = DocumentService.get_document_path(doc.id, doc=doc)
         
         try:
             text = await asyncio.to_thread(ParsingService.extract_text, file_path, doc.content_type, doc.filename)
+            if text and text.strip():
+                # Persist extracted text directly in PostgreSQL for cloud durability
+                doc.extracted_text = text
+                await session.commit()
+                
             chunks = await asyncio.to_thread(ChunkingService.chunk_text, text)
-            await VectorDBService.add_chunks_async(doc.id, user_id, chunks, filename=doc.filename)
+            if chunks:
+                await VectorDBService.add_chunks_async(doc.id, user_id, chunks, filename=doc.filename)
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Background processing failed for document {document_id}: {e}")

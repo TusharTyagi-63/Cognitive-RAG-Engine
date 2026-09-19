@@ -19,59 +19,55 @@ from backend.app.utils.exceptions import NotFoundException, BadRequestException
 
 class DocumentService:
     @staticmethod
-    def get_document_path(document_id: UUID) -> Path:
-        """Returns the local file path for a given document."""
-        return Path(settings.UPLOAD_DIR) / str(document_id)
+    def get_document_path(document_id: UUID, doc: Document = None) -> Path:
+        """Returns the local file path for a given document, restoring from DB if missing."""
+        path = Path(settings.UPLOAD_DIR) / str(document_id)
+        if not path.exists() and doc is not None and getattr(doc, 'file_data', None):
+            try:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with open(path, "wb") as f:
+                    f.write(doc.file_data)
+            except Exception:
+                pass
+        return path
 
     @staticmethod
     async def save_document(session: AsyncSession, user_id: UUID, file: UploadFile) -> Document:
         """
-        Validates file size and extension, creates a DB record, and saves the file to disk.
+        Validates file size and extension, creates a DB record with cached file bytes,
+        and saves the file to disk for local processing.
         """
         # Validate extension
         ext = Path(file.filename).suffix.lower()
         if ext not in settings.ALLOWED_EXTENSIONS:
             raise BadRequestException(f"File extension '{ext}' not allowed. Allowed: {settings.ALLOWED_EXTENSIONS}")
             
-        # Create the DB record first to get a UUID
+        file_bytes = await file.read()
+        actual_size = len(file_bytes)
+        
+        if actual_size > settings.MAX_UPLOAD_SIZE:
+            raise BadRequestException(f"File exceeds maximum allowed size of {settings.MAX_UPLOAD_SIZE / (1024*1024)} MB")
+
+        # Create the DB record with file_data cached in PostgreSQL
         doc = Document(
             user_id=user_id,
             filename=file.filename,
-            file_size=file.size or 0,
-            content_type=file.content_type or "application/octet-stream"
+            file_size=actual_size,
+            content_type=file.content_type or "application/octet-stream",
+            file_data=file_bytes
         )
         session.add(doc)
         await session.flush()  # Populates doc.id
         
         # Save to disk using the UUID as the filename
         target_path = DocumentService.get_document_path(doc.id)
-        
-        # Ensure upload dir exists
         target_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Write the file in chunks to avoid memory issues
         try:
             with open(target_path, "wb") as buffer:
-                # SpooledTemporaryFile backing the UploadFile can be read sequentially
-                while chunk := await file.read(1024 * 1024):  # 1MB chunks
-                    buffer.write(chunk)
-            
-            # Update the exact file size if it wasn't provided by the client
-            actual_size = os.path.getsize(target_path)
-            
-            # Validate size
-            if actual_size > settings.MAX_UPLOAD_SIZE:
-                os.remove(target_path)
-                raise BadRequestException(f"File exceeds maximum allowed size of {settings.MAX_UPLOAD_SIZE / (1024*1024)} MB")
-                
-            doc.file_size = actual_size
-            await session.flush()
-            
+                buffer.write(file_bytes)
         except Exception as e:
-            # Cleanup on failure
-            if target_path.exists():
-                os.remove(target_path)
-            raise BadRequestException(f"Failed to save file: {str(e)}")
+            # If disk write fails on restricted environment, DB still has file_data!
+            pass
             
         return doc
 
