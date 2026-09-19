@@ -60,6 +60,10 @@ class MessageCreate(AppBaseModel):
         None,
         description="Optional list of specific document IDs to constrain the RAG search."
     )
+    reasoning_mode: Optional[str] = Field(
+        "fast",
+        description="Reasoning mode: 'fast' for direct Q&A, 'deep' for multi-hop synthesis."
+    )
 
 
 class MessageResponse(AppBaseModel):

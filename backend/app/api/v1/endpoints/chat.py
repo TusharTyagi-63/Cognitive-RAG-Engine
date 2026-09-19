@@ -101,7 +101,9 @@ async def send_message(
         current_user.id, 
         payload.content, 
         user_documents=doc_filenames,
-        chat_history=formatted_history
+        chat_history=formatted_history,
+        document_ids=payload.document_ids,
+        reasoning_mode=payload.reasoning_mode or "fast"
     )
     
     # 4. Save AI response to DB
@@ -181,7 +183,8 @@ async def stream_message(
                 payload.content,
                 user_documents=doc_filenames,
                 chat_history=formatted_history,
-                document_ids=payload.document_ids
+                document_ids=payload.document_ids,
+                reasoning_mode=payload.reasoning_mode or "fast"
             ):
                 # Parse the SSE chunk to extract text
                 if chunk.startswith("data: "):

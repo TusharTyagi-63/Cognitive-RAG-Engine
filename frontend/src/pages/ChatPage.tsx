@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { FormEvent } from 'react';
 import { Send, Loader2, Copy, Check, Sparkles, Volume2, VolumeX, Download, X, Zap, Brain } from 'lucide-react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -49,6 +49,7 @@ const CodeBlock = ({ inline, className, children, ...props }: any) => {
 export function ChatPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [messages, setMessages] = useState<{ role: string, content: string, sources?: any[], metrics?: any }[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -58,7 +59,7 @@ export function ChatPage() {
   
   // Source Inspector Drawer State
   const [inspectorOpen, setInspectorOpen] = useState(false);
-  const [activeSource, setActiveSource] = useState<{ filename: string, content: string, score?: number } | null>(null);
+  const [activeSource, setActiveSource] = useState<{ id?: string, filename: string, content: string, score?: number } | null>(null);
 
   const [documents, setDocuments] = useState<{ id: string, filename: string }[]>([]);
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
@@ -90,6 +91,21 @@ export function ChatPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (location.state?.documentId) {
+      setSelectedDocs([location.state.documentId]);
+      if (location.state.filename) {
+        setInput(`Analyze key findings, metrics, and insights from ${location.state.filename}`);
+      }
+    }
+    if (location.state?.reasoningMode) {
+      setReasoningMode(location.state.reasoningMode);
+    }
+    if (location.state?.prompt) {
+      setInput(location.state.prompt);
+    }
+  }, [location.state]);
 
   const loadHistory = async (sessionId: string) => {
     try {
@@ -126,7 +142,10 @@ export function ChatPage() {
 
       const token = localStorage.getItem('token');
       
-      const payload: any = { content: userMsg };
+      const payload: any = { 
+        content: userMsg,
+        reasoning_mode: reasoningMode
+      };
       if (selectedDocs.length > 0) {
         payload.document_ids = selectedDocs;
       }
@@ -266,8 +285,10 @@ export function ChatPage() {
 
   // Open Source Inspector
   const handleInspectSource = (src: any) => {
-    const docName = documents.find(d => d.id === src.document_id)?.filename || 'Document Source';
+    const doc = documents.find(d => d.id === src.document_id);
+    const docName = doc?.filename || 'Document Source';
     setActiveSource({
+      id: src.document_id,
       filename: docName,
       content: src.content || src.text || 'Extracted contextual chunk from vector store matching current query.',
       score: src.score || 0.92
@@ -281,7 +302,7 @@ export function ChatPage() {
       {/* Main Chat Area */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', minWidth: 0 }}>
         
-        {/* Sub-Header: Mode Switcher & Status */}
+        {/* Sub-Header: Mode Switcher, Scope & Status */}
         <div style={{ 
           minHeight: '44px', 
           borderBottom: '1px solid rgba(255,255,255,0.06)', 
@@ -295,50 +316,96 @@ export function ChatPage() {
           flexWrap: 'wrap',
           gap: '0.5rem'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }} className="hide-mobile">Engine Mode:</span>
-            <div style={{ display: 'flex', background: 'rgba(0,0,0,0.4)', padding: '2px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <button 
-                type="button"
-                onClick={() => setReasoningMode('fast')}
-                style={{ 
-                  padding: '4px 10px', 
-                  borderRadius: '6px', 
-                  fontSize: '0.725rem', 
-                  fontWeight: 600, 
-                  background: reasoningMode === 'fast' ? '#6366f1' : 'transparent',
-                  color: reasoningMode === 'fast' ? '#fff' : '#94a3b8',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                <Zap size={13} />
-                Fast Mode
-              </button>
-              <button 
-                type="button"
-                onClick={() => setReasoningMode('deep')}
-                style={{ 
-                  padding: '4px 10px', 
-                  borderRadius: '6px', 
-                  fontSize: '0.725rem', 
-                  fontWeight: 600, 
-                  background: reasoningMode === 'deep' ? '#6366f1' : 'transparent',
-                  color: reasoningMode === 'deep' ? '#fff' : '#94a3b8',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                <Brain size={13} />
-                Deep Synthesis
-              </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }} className="hide-mobile">Engine:</span>
+              <div style={{ display: 'flex', background: 'rgba(0,0,0,0.4)', padding: '2px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <button 
+                  type="button"
+                  onClick={() => setReasoningMode('fast')}
+                  style={{ 
+                    padding: '4px 10px', 
+                    borderRadius: '6px', 
+                    fontSize: '0.725rem', 
+                    fontWeight: 600, 
+                    background: reasoningMode === 'fast' ? '#6366f1' : 'transparent',
+                    color: reasoningMode === 'fast' ? '#fff' : '#94a3b8',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <Zap size={13} />
+                  Fast Mode
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setReasoningMode('deep')}
+                  style={{ 
+                    padding: '4px 10px', 
+                    borderRadius: '6px', 
+                    fontSize: '0.725rem', 
+                    fontWeight: 600, 
+                    background: reasoningMode === 'deep' ? '#6366f1' : 'transparent',
+                    color: reasoningMode === 'deep' ? '#fff' : '#94a3b8',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <Brain size={13} />
+                  Deep Synthesis
+                </button>
+              </div>
             </div>
+
+            {/* Scope Filter Dropdown */}
+            {documents.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }} className="hide-mobile">Scope:</span>
+                <select
+                  value={selectedDocs.length === 1 ? selectedDocs[0] : (selectedDocs.length > 1 ? 'multi' : 'all')}
+                  onChange={(e) => {
+                    if (e.target.value === 'all') {
+                      setSelectedDocs([]);
+                    } else if (e.target.value !== 'multi') {
+                      setSelectedDocs([e.target.value]);
+                    }
+                  }}
+                  style={{
+                    background: 'rgba(0,0,0,0.4)',
+                    border: selectedDocs.length > 0 ? '1px solid #6366f1' : '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '8px',
+                    color: selectedDocs.length > 0 ? '#a5b4fc' : '#cbd5e1',
+                    fontSize: '0.725rem',
+                    padding: '4px 8px',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    maxWidth: '190px'
+                  }}
+                >
+                  <option value="all">🌐 All Documents ({documents.length})</option>
+                  {selectedDocs.length > 1 && <option value="multi">🎯 Filtered ({selectedDocs.length} selected)</option>}
+                  {documents.map(doc => (
+                    <option key={doc.id} value={doc.id}>📄 {doc.filename}</option>
+                  ))}
+                </select>
+                {selectedDocs.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDocs([])}
+                    title="Reset to all documents"
+                    style={{ background: 'transparent', border: 'none', color: '#818cf8', fontSize: '0.7rem', cursor: 'pointer', padding: '2px 4px' }}
+                  >
+                    ✕ Clear
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#94a3b8' }}>
@@ -358,6 +425,24 @@ export function ChatPage() {
                     <div>{msg.content}</div>
                   ) : (
                     <div>
+                      {msg.metrics?.reasoning_mode === 'deep' && (
+                        <div style={{ 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          gap: '0.35rem', 
+                          background: 'rgba(99, 102, 241, 0.15)', 
+                          border: '1px solid rgba(99, 102, 241, 0.3)', 
+                          borderRadius: '6px', 
+                          padding: '0.2rem 0.55rem', 
+                          fontSize: '0.7rem', 
+                          fontWeight: 600, 
+                          color: '#a5b4fc', 
+                          marginBottom: '0.65rem' 
+                        }}>
+                          <Brain size={12} />
+                          <span>Deep Synthesis Engine • Multi-Hop Grounded</span>
+                        </div>
+                      )}
                       <div style={{ fontSize: '0.925rem', color: '#f1f5f9' }}>
                         <ReactMarkdown
                           components={{
@@ -680,7 +765,34 @@ export function ChatPage() {
             </div>
           </div>
 
-          <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid rgba(255,255,255,0.08)', background: '#090b10' }}>
+          <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid rgba(255,255,255,0.08)', background: '#090b10', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {activeSource.id && (
+              <a 
+                href={`${API_BASE}/documents/${activeSource.id}/content?token=${localStorage.getItem('token')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ 
+                  width: '100%', 
+                  padding: '0.65rem', 
+                  borderRadius: '8px', 
+                  background: 'rgba(99, 102, 241, 0.2)', 
+                  border: '1px solid rgba(99, 102, 241, 0.4)', 
+                  color: '#c7d2fe', 
+                  fontSize: '0.75rem', 
+                  fontWeight: 600, 
+                  textAlign: 'center', 
+                  textDecoration: 'none',
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.4rem'
+                }}
+              >
+                <span>📥</span>
+                <span>Open / Download Original File</span>
+              </a>
+            )}
             <button 
               onClick={() => {
                 navigator.clipboard.writeText(activeSource.content);

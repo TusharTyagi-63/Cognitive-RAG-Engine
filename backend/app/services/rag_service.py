@@ -40,6 +40,16 @@ Your task is to generate a comprehensive, well-structured, and insightful summar
 Organize your summary with clear headings, bullet points for key details, and a conclusion section.
 Format your response using clean, readable Markdown."""
 
+    DEEP_SYNTHESIS_PROMPT = """You are an advanced Cognitive Enterprise AI conducting deep multi-hop synthesis across document evidence.
+Your task is to provide an exhaustive, rigorously grounded analysis answering the user's inquiry.
+
+Requirements for Deep Synthesis:
+1. **Executive Synthesis**: Begin with a crisp, high-impact overview answering the core question.
+2. **Evidence-Based Breakdown**: Step-by-step reasoning cross-referencing facts, numbers, dates, and tables from all relevant documents.
+3. **Comparative Analysis & Nuances**: Explicitly highlight relationships, trade-offs, or any discrepancies between different cited sources.
+4. **Attribution & Grounding**: Ground key facts with source citations [Document Name].
+5. Format with polished Markdown (bold section headings, structured bullet points, and tables when comparing structured figures)."""
+
     @classmethod
     def _classify_intent(cls, question: str) -> str:
         """
@@ -54,9 +64,9 @@ Format your response using clean, readable Markdown."""
         return "SEARCH"
 
     @classmethod
-    async def query(cls, user_id: UUID, question: str, top_k: int = 5, user_documents: List[str] = None, chat_history: List[Dict[str, str]] = None, document_ids: List[UUID] = None) -> Dict[str, Any]:
+    async def query(cls, user_id: UUID, question: str, top_k: int = 5, user_documents: List[str] = None, chat_history: List[Dict[str, str]] = None, document_ids: List[UUID] = None, reasoning_mode: str = "fast") -> Dict[str, Any]:
         """
-        1. Classifies intent (SUMMARY vs SEARCH).
+        1. Classifies intent (SUMMARY vs SEARCH) and evaluates reasoning mode (fast vs deep).
         2. Retrieves context using the appropriate strategy.
         3. Calls LLM with full context + conversation history.
         4. Returns answer, sources, and latency metrics.
@@ -66,12 +76,16 @@ Format your response using clean, readable Markdown."""
         retrieval_mode = "dense_vector"
 
         intent = cls._classify_intent(question)
-        logger.info(f"Classified intent as: {intent} for question: '{question}'")
+        logger.info(f"Classified intent as: {intent}, reasoning_mode={reasoning_mode} for question: '{question}'")
 
         if intent == "SUMMARY":
             retrieval_mode = "summary_all"
             results = await asyncio.to_thread(VectorDBService.get_all_chunks, user_id, 40, document_ids)
             system_msg = cls.SUMMARY_SYSTEM_PROMPT
+        elif reasoning_mode == "deep":
+            retrieval_mode = "deep_synthesis"
+            results = await asyncio.to_thread(VectorDBService.search_similar, question, user_id, 8, document_ids)
+            system_msg = cls.DEEP_SYNTHESIS_PROMPT
         else:
             results = await asyncio.to_thread(VectorDBService.search_similar, question, user_id, 5, document_ids)
             system_msg = cls.SYSTEM_PROMPT
@@ -201,7 +215,7 @@ Format your response using clean, readable Markdown."""
         }
 
     @classmethod
-    async def stream_query(cls, user_id: UUID, question: str, top_k: int = 5, user_documents: List[str] = None, chat_history: List[Dict[str, str]] = None, document_ids: List[UUID] = None):
+    async def stream_query(cls, user_id: UUID, question: str, top_k: int = 5, user_documents: List[str] = None, chat_history: List[Dict[str, str]] = None, document_ids: List[UUID] = None, reasoning_mode: str = "fast"):
         """
         Streaming version of query().
         Retrieves context then streams LLM response token-by-token.
@@ -218,6 +232,10 @@ Format your response using clean, readable Markdown."""
             retrieval_mode = "summary_all"
             results = await asyncio.to_thread(VectorDBService.get_all_chunks, user_id, 40, document_ids)
             system_msg = cls.SUMMARY_SYSTEM_PROMPT
+        elif reasoning_mode == "deep":
+            retrieval_mode = "deep_synthesis"
+            results = await asyncio.to_thread(VectorDBService.search_similar, question, user_id, 8, document_ids)
+            system_msg = cls.DEEP_SYNTHESIS_PROMPT
         else:
             results = await asyncio.to_thread(VectorDBService.search_similar, question, user_id, 5, document_ids)
             system_msg = cls.SYSTEM_PROMPT
@@ -331,6 +349,7 @@ Format your response using clean, readable Markdown."""
                 ],
                 "context_chars": len(context_block),
                 "model": model_name,
+                "reasoning_mode": reasoning_mode,
                 "time_to_first_token_ms": ttft_ms,
                 "llm_generation_time_ms": llm_gen_ms,
                 "total_request_time_ms": total_time_ms,
@@ -346,7 +365,8 @@ Format your response using clean, readable Markdown."""
                 "total_time_ms": total_time_ms,
                 "retrieval_time_ms": retrieval_time_ms,
                 "model": model_name,
-                "chunks_count": len(sources)
+                "chunks_count": len(sources),
+                "reasoning_mode": reasoning_mode
             }
             yield f"data: [METRICS]{json.dumps(metrics_event)}\n\n"
             yield f"data: [SOURCES]{json.dumps(sources)}\n\n"

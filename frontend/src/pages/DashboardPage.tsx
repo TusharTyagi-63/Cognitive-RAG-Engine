@@ -284,12 +284,33 @@ export function DashboardPage() {
                 </span>
               </div>
 
-              <button 
-                onClick={() => navigate('/chat/new')}
-                style={{ background: 'none', border: 'none', color: '#818cf8', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-              >
-                Ask follow-up in chat →
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <button 
+                  onClick={() => navigate('/chat/new', { state: { reasoningMode: 'deep', prompt: 'Perform an exhaustive synthesis across all uploaded documents, highlighting key metrics, discrepancies, and actionable recommendations.' } })}
+                  style={{ 
+                    background: 'rgba(99, 102, 241, 0.2)', 
+                    border: '1px solid rgba(99, 102, 241, 0.4)', 
+                    color: '#c7d2fe', 
+                    fontSize: '0.75rem', 
+                    fontWeight: 600, 
+                    padding: '5px 12px', 
+                    borderRadius: '8px', 
+                    cursor: 'pointer', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.35rem' 
+                  }}
+                >
+                  <span>🧠</span>
+                  <span>Run Deep Synthesis</span>
+                </button>
+                <button 
+                  onClick={() => navigate('/chat/new')}
+                  style={{ background: 'none', border: 'none', color: '#818cf8', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                >
+                  Ask follow-up in chat →
+                </button>
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.75rem', fontSize: '0.8rem' }}>
@@ -400,6 +421,36 @@ export function DashboardPage() {
                         <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#34d399' }} />
                         Indexed
                       </span>
+
+                      <button
+                        onClick={() => navigate('/chat/new', { state: { documentId: doc.id, filename: doc.filename } })}
+                        style={{ 
+                          background: 'rgba(99, 102, 241, 0.15)', 
+                          border: '1px solid rgba(99, 102, 241, 0.3)', 
+                          color: '#a5b4fc', 
+                          padding: '4px 9px', 
+                          borderRadius: '6px', 
+                          fontSize: '0.725rem', 
+                          fontWeight: 600, 
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          transition: 'all 0.15s'
+                        }}
+                        title={`Query ${doc.filename} in Chat Studio`}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(99, 102, 241, 0.3)';
+                          e.currentTarget.style.color = '#fff';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'rgba(99, 102, 241, 0.15)';
+                          e.currentTarget.style.color = '#a5b4fc';
+                        }}
+                      >
+                        <MessageSquare size={13} />
+                        <span>Query</span>
+                      </button>
 
                       <button
                         onClick={() => handleOpenDocument(doc.id)}
