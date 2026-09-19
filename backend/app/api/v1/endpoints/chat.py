@@ -90,6 +90,9 @@ async def send_message(
     # 3. Call the RAG Service
     from backend.app.services.document_service import DocumentService
     docs = await DocumentService.get_user_documents(session, current_user.id)
+    if payload.document_ids:
+        selected_ids = [str(did) for did in payload.document_ids]
+        docs = [d for d in docs if str(d.id) in selected_ids]
     doc_filenames = [d.filename for d in docs]
     
     # Fetch previous messages for conversation memory (last 10 messages, excluding the one just added)

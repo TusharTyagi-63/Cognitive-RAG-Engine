@@ -31,63 +31,86 @@ _IMAGE_EXTENSIONS = {
 
 class ParsingService:
     @staticmethod
-    def extract_text(file_path: Path, content_type: str) -> str:
+    def extract_text(file_path: Path, content_type: str = "", original_filename: str = None) -> str:
         """
-        Routes the file to the correct parser based on MIME type or extension.
+        Routes the file to the correct parser based on MIME type, original filename, or magic bytes.
         Returns the extracted plain text as a single string.
         """
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
 
-        ext = file_path.suffix.lower()
+        # 1. Determine extension from original filename or file path
+        ext = ""
+        if original_filename:
+            ext = Path(original_filename).suffix.lower()
+        if not ext and file_path.suffix:
+            ext = file_path.suffix.lower()
+
+        # 2. Magic byte detection for extensionless files on disk
+        if not ext:
+            try:
+                with open(file_path, "rb") as f:
+                    header = f.read(16)
+                    if header.startswith(b"%PDF-"):
+                        ext = ".pdf"
+                    elif header.startswith(b"\x89PNG"):
+                        ext = ".png"
+                    elif header.startswith(b"\xff\xd8\xff"):
+                        ext = ".jpg"
+                    elif header.startswith(b"PK\x03\x04"):
+                        ct = (content_type or "").lower()
+                        if "sheet" in ct or "excel" in ct:
+                            ext = ".xlsx"
+                        elif "presentation" in ct or "powerpoint" in ct:
+                            ext = ".pptx"
+                        else:
+                            ext = ".docx"
+            except Exception:
+                pass
+
+        ct = (content_type or "").lower()
 
         try:
             # ── PDF ──────────────────────────────────────────────────────
-            if content_type == "application/pdf" or ext == ".pdf":
+            if ext == ".pdf" or "pdf" in ct:
                 return ParsingService._parse_pdf(file_path)
 
             # ── Microsoft Office ─────────────────────────────────────────
-            if ext == ".docx" or content_type in (
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            ):
+            if ext == ".docx" or "word" in ct:
                 return ParsingService._parse_docx(file_path)
 
-            if ext == ".pptx" or content_type in (
-                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            ):
+            if ext == ".pptx" or "presentation" in ct or "powerpoint" in ct:
                 return ParsingService._parse_pptx(file_path)
 
-            if ext == ".xlsx" or content_type in (
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            ):
+            if ext in (".xlsx", ".xls") or "spreadsheet" in ct or "excel" in ct:
                 return ParsingService._parse_xlsx(file_path)
 
             # ── CSV ──────────────────────────────────────────────────────
-            if content_type in ("text/csv", "application/csv") or ext == ".csv":
+            if ext == ".csv" or "csv" in ct:
                 return ParsingService._parse_csv(file_path)
 
             # ── HTML ─────────────────────────────────────────────────────
-            if ext in (".html", ".htm") or content_type == "text/html":
+            if ext in (".html", ".htm") or "html" in ct:
                 return ParsingService._parse_html(file_path)
 
             # ── XML ──────────────────────────────────────────────────────
-            if ext == ".xml" or content_type in ("application/xml", "text/xml"):
+            if ext == ".xml" or "xml" in ct:
                 return ParsingService._parse_xml(file_path)
 
             # ── JSON ─────────────────────────────────────────────────────
-            if ext == ".json" or content_type == "application/json":
+            if ext == ".json" or "json" in ct:
                 return ParsingService._parse_json(file_path)
 
             # ── RTF ──────────────────────────────────────────────────────
-            if ext == ".rtf" or content_type == "application/rtf":
+            if ext == ".rtf" or "rtf" in ct:
                 return ParsingService._parse_rtf(file_path)
 
             # ── Images (Gemini Vision AI) ────────────────────────────────
-            if ext in _IMAGE_EXTENSIONS or content_type.startswith("image/"):
+            if ext in _IMAGE_EXTENSIONS or ct.startswith("image/"):
                 return ParsingService._parse_image(file_path)
 
             # ── Plain text / source code / config ────────────────────────
-            if ext in _TEXT_EXTENSIONS or content_type.startswith("text/"):
+            if ext in _TEXT_EXTENSIONS or ct.startswith("text/"):
                 return ParsingService._parse_text(file_path)
 
             # ── Fallback: attempt plain text ─────────────────────────────
@@ -250,17 +273,25 @@ class ParsingService:
         This handles text extraction (OCR), diagram reading, chart analysis,
         and general image description — far superior to traditional OCR.
         """
-        import google.generativeai as genai
-        from PIL import Image
+        import base64
+        import mimetypes
+        from openai import OpenAI
         from backend.app.core.config import settings
 
         if not settings.GEMINI_API_KEY:
             raise BadRequestException("GEMINI_API_KEY is not configured. Cannot process images.")
 
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-3.6-flash')
+        mime_type, _ = mimetypes.guess_type(str(file_path))
+        if not mime_type or not mime_type.startswith("image/"):
+            mime_type = "image/jpeg"
 
-        img = Image.open(file_path)
+        with open(file_path, "rb") as image_file:
+            base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+
+        client = OpenAI(
+            api_key=settings.GEMINI_API_KEY,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+        )
 
         prompt = (
             "Analyze this image thoroughly. Extract ALL text visible in the image exactly as written. "
@@ -271,5 +302,23 @@ class ParsingService:
             "Format the output as clean, readable text."
         )
 
-        response = model.generate_content([prompt, img])
-        return response.text
+        response = client.chat.completions.create(
+            model="gemini-3.6-flash",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{mime_type};base64,{base64_image}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens=2048
+        )
+
+        return response.choices[0].message.content

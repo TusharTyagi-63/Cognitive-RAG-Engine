@@ -24,7 +24,9 @@ SUMMARY_INTENTS = [
     "describe", "what is this", "what does this", "tell me about",
     "give me an idea", "brief", "outline", "tldr", "tl;dr",
     "main points", "key points", "what is the paper", "what is the document",
-    "what is this about", "explain this", "explain the"
+    "what is this about", "explain this", "explain the",
+    "analyze", "analyse", "analysis", "findings", "insights", "review",
+    "read", "read this", "read document", "about this document", "key metrics"
 ]
 
 class RAGService:
@@ -75,8 +77,17 @@ Requirements for Deep Synthesis:
         retrieval_start = time.perf_counter()
         retrieval_mode = "dense_vector"
 
+        # Clean query for vector embedding search if decorated with mode prefixes
+        search_query = question
+        if "[Deep Synthesis Mode]:" in search_query:
+            parts = search_query.split("[Deep Synthesis Mode]:", 1)[-1]
+            if "citations." in parts:
+                search_query = parts.split("citations.", 1)[-1].strip()
+            else:
+                search_query = parts.strip()
+
         intent = cls._classify_intent(question)
-        logger.info(f"Classified intent as: {intent}, reasoning_mode={reasoning_mode} for question: '{question}'")
+        logger.info(f"Classified intent as: {intent}, reasoning_mode={reasoning_mode} for question: '{question}', document_ids={document_ids}")
 
         if intent == "SUMMARY":
             retrieval_mode = "summary_all"
@@ -84,37 +95,63 @@ Requirements for Deep Synthesis:
             system_msg = cls.SUMMARY_SYSTEM_PROMPT
         elif reasoning_mode == "deep":
             retrieval_mode = "deep_synthesis"
-            results = await asyncio.to_thread(VectorDBService.search_similar, question, user_id, 8, document_ids)
+            results = await asyncio.to_thread(VectorDBService.search_similar, search_query, user_id, 8, document_ids)
             system_msg = cls.DEEP_SYNTHESIS_PROMPT
         else:
-            results = await asyncio.to_thread(VectorDBService.search_similar, question, user_id, 5, document_ids)
+            results = await asyncio.to_thread(VectorDBService.search_similar, search_query, user_id, 5, document_ids)
             system_msg = cls.SYSTEM_PROMPT
+
+        # If user selected specific document(s) and similarity search returned 0 results, fallback to sequential chunks
+        if not results and document_ids:
+            logger.info(f"Vector search returned 0 results for document_ids={document_ids}. Trying sequential chunks...")
+            results = await asyncio.to_thread(VectorDBService.get_all_chunks, user_id, 40, document_ids)
+            if results:
+                retrieval_mode = "scoped_chunks"
+
+        # Map document_id -> filename for crisp, unambiguous source attribution
+        doc_map = {}
+        try:
+            from backend.app.services.document_service import DocumentService
+            from backend.app.database.connection import async_session_factory
+            async with async_session_factory() as db_session:
+                all_docs = await DocumentService.get_user_documents(db_session, user_id)
+                doc_map = {str(d.id): d.filename for d in all_docs}
+        except Exception as e:
+            logger.debug(f"Could not load doc_map: {e}")
 
         # Format Context
         if not results:
             context_block = "No document content found."
             sources = []
-            # Fallback: if vector search returned 0 chunks but user has documents on disk
-            if user_documents:
+            # Resilient fallback: parse documents directly from disk if vector search was empty
+            if user_documents or document_ids:
                 try:
                     from backend.app.services.document_service import DocumentService
                     from backend.app.services.parsing_service import ParsingService
                     from backend.app.database.connection import async_session_factory
                     async with async_session_factory() as db_session:
                         user_docs = await DocumentService.get_user_documents(db_session, user_id)
+
+                        # Filter to specific requested document(s) if provided
+                        if document_ids:
+                            target_ids = {str(did) for did in document_ids}
+                            target_docs = [d for d in user_docs if str(d.id) in target_ids]
+                        else:
+                            target_docs = user_docs[:4]
+
                         fallback_pieces = []
-                        for d in user_docs[:4]:
+                        for d in target_docs:
                             fpath = DocumentService.get_document_path(d.id)
                             if fpath.exists():
-                                txt = await asyncio.to_thread(ParsingService.extract_text, fpath, d.content_type)
+                                txt = await asyncio.to_thread(ParsingService.extract_text, fpath, d.content_type, d.filename)
                                 if txt:
-                                    snippet = txt[:3500]
+                                    snippet = txt[:15000] if len(target_docs) == 1 else txt[:4000]
                                     fallback_pieces.append(f"--- DOCUMENT: {d.filename} ---\n{snippet}\n")
                                     sources.append({
                                         "document_id": str(d.id),
                                         "chunk_index": 0,
                                         "content": snippet[:1000],
-                                        "score": 0.92
+                                        "score": 0.95
                                     })
                         if fallback_pieces:
                             context_block = "\n".join(fallback_pieces)
@@ -127,11 +164,14 @@ Requirements for Deep Synthesis:
             sources = []
             for i, hit in enumerate(results):
                 text = hit["text"]
-                metadata = hit["metadata"]
-                context_pieces.append(f"--- CHUNK {i+1} ---\n{text}\n")
+                metadata = hit.get("metadata", {})
+                doc_id = str(metadata.get("document_id", ""))
+                doc_name = metadata.get("filename") or doc_map.get(doc_id) or f"Document {doc_id[:8]}"
+                chunk_idx = metadata.get("chunk_index", i)
+                context_pieces.append(f"--- DOCUMENT: {doc_name} (Section {chunk_idx + 1}) ---\n{text}\n")
                 sources.append({
-                    "document_id": metadata.get("document_id"),
-                    "chunk_index": metadata.get("chunk_index"),
+                    "document_id": doc_id,
+                    "chunk_index": chunk_idx,
                     "content": text,
                     "text_snippet": text[:100] + "...",
                     "score": hit.get("score", 0.95),
@@ -226,7 +266,17 @@ Requirements for Deep Synthesis:
         retrieval_start = time.perf_counter()
         retrieval_mode = "dense_vector"
 
+        # Clean query for vector embedding search if decorated with mode prefixes
+        search_query = question
+        if "[Deep Synthesis Mode]:" in search_query:
+            parts = search_query.split("[Deep Synthesis Mode]:", 1)[-1]
+            if "citations." in parts:
+                search_query = parts.split("citations.", 1)[-1].strip()
+            else:
+                search_query = parts.strip()
+
         intent = cls._classify_intent(question)
+        logger.info(f"Stream query classified as: {intent}, reasoning_mode={reasoning_mode} for question: '{question}', document_ids={document_ids}")
 
         if intent == "SUMMARY":
             retrieval_mode = "summary_all"
@@ -234,36 +284,62 @@ Requirements for Deep Synthesis:
             system_msg = cls.SUMMARY_SYSTEM_PROMPT
         elif reasoning_mode == "deep":
             retrieval_mode = "deep_synthesis"
-            results = await asyncio.to_thread(VectorDBService.search_similar, question, user_id, 8, document_ids)
+            results = await asyncio.to_thread(VectorDBService.search_similar, search_query, user_id, 8, document_ids)
             system_msg = cls.DEEP_SYNTHESIS_PROMPT
         else:
-            results = await asyncio.to_thread(VectorDBService.search_similar, question, user_id, 5, document_ids)
+            results = await asyncio.to_thread(VectorDBService.search_similar, search_query, user_id, 5, document_ids)
             system_msg = cls.SYSTEM_PROMPT
+
+        # If user selected specific document(s) and similarity search returned 0 results, fallback to sequential chunks
+        if not results and document_ids:
+            logger.info(f"Stream vector search returned 0 results for document_ids={document_ids}. Trying sequential chunks...")
+            results = await asyncio.to_thread(VectorDBService.get_all_chunks, user_id, 40, document_ids)
+            if results:
+                retrieval_mode = "scoped_chunks"
+
+        # Map document_id -> filename for crisp, unambiguous source attribution
+        doc_map = {}
+        try:
+            from backend.app.services.document_service import DocumentService
+            from backend.app.database.connection import async_session_factory
+            async with async_session_factory() as db_session:
+                all_docs = await DocumentService.get_user_documents(db_session, user_id)
+                doc_map = {str(d.id): d.filename for d in all_docs}
+        except Exception as e:
+            logger.debug(f"Could not load doc_map: {e}")
 
         if not results:
             context_block = "No document content found."
             sources = []
             # Resilient fallback: parse documents directly from disk if vector search was empty
-            if user_documents:
+            if user_documents or document_ids:
                 try:
                     from backend.app.services.document_service import DocumentService
                     from backend.app.services.parsing_service import ParsingService
                     from backend.app.database.connection import async_session_factory
                     async with async_session_factory() as db_session:
                         user_docs = await DocumentService.get_user_documents(db_session, user_id)
+
+                        # Filter to specific requested document(s) if provided
+                        if document_ids:
+                            target_ids = {str(did) for did in document_ids}
+                            target_docs = [d for d in user_docs if str(d.id) in target_ids]
+                        else:
+                            target_docs = user_docs[:4]
+
                         fallback_pieces = []
-                        for d in user_docs[:4]:
+                        for d in target_docs:
                             fpath = DocumentService.get_document_path(d.id)
                             if fpath.exists():
-                                txt = await asyncio.to_thread(ParsingService.extract_text, fpath, d.content_type)
+                                txt = await asyncio.to_thread(ParsingService.extract_text, fpath, d.content_type, d.filename)
                                 if txt:
-                                    snippet = txt[:3500]
+                                    snippet = txt[:15000] if len(target_docs) == 1 else txt[:4000]
                                     fallback_pieces.append(f"--- DOCUMENT: {d.filename} ---\n{snippet}\n")
                                     sources.append({
                                         "document_id": str(d.id),
                                         "chunk_index": 0,
                                         "content": snippet[:1000],
-                                        "score": 0.92
+                                        "score": 0.95
                                     })
                         if fallback_pieces:
                             context_block = "\n".join(fallback_pieces)
@@ -276,11 +352,14 @@ Requirements for Deep Synthesis:
             sources = []
             for i, hit in enumerate(results):
                 text = hit["text"]
-                metadata = hit["metadata"]
-                context_pieces.append(f"--- CHUNK {i+1} ---\n{text}\n")
+                metadata = hit.get("metadata", {})
+                doc_id = str(metadata.get("document_id", ""))
+                doc_name = metadata.get("filename") or doc_map.get(doc_id) or f"Document {doc_id[:8]}"
+                chunk_idx = metadata.get("chunk_index", i)
+                context_pieces.append(f"--- DOCUMENT: {doc_name} (Section {chunk_idx + 1}) ---\n{text}\n")
                 sources.append({
-                    "document_id": metadata.get("document_id"),
-                    "chunk_index": metadata.get("chunk_index"),
+                    "document_id": doc_id,
+                    "chunk_index": chunk_idx,
                     "content": text,
                     "score": hit.get("score", 0.95),
                 })

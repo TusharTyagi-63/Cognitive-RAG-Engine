@@ -106,9 +106,9 @@ async def _process_in_background(document_id: UUID, user_id: UUID):
         file_path = DocumentService.get_document_path(doc.id)
         
         try:
-            text = await asyncio.to_thread(ParsingService.extract_text, file_path, doc.content_type)
+            text = await asyncio.to_thread(ParsingService.extract_text, file_path, doc.content_type, doc.filename)
             chunks = await asyncio.to_thread(ChunkingService.chunk_text, text)
-            await VectorDBService.add_chunks_async(doc.id, user_id, chunks)
+            await VectorDBService.add_chunks_async(doc.id, user_id, chunks, filename=doc.filename)
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Background processing failed for document {document_id}: {e}")

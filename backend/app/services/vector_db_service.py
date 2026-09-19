@@ -133,7 +133,7 @@ class VectorDBService:
         return cls._client
 
     @classmethod
-    async def add_chunks_async(cls, document_id: UUID, user_id: UUID, chunks: List[str]) -> None:
+    async def add_chunks_async(cls, document_id: UUID, user_id: UUID, chunks: List[str], filename: str = None) -> None:
         """
         Embeds and stores text chunks in Qdrant.
         Runs in small batches and yields to the event loop to prevent CPU starvation.
@@ -151,8 +151,6 @@ class VectorDBService:
             chunk_batch = chunks[i:i+batch_size]
             
             # 1. Embed this small batch using Gemini API
-            # Gemini handles batching natively, so we just pass the chunks directly
-            # We use to_thread just in case the HTTP request blocks
             def embed_batch():
                 return cls._get_embedding(chunk_batch)
                 
@@ -168,6 +166,7 @@ class VectorDBService:
                         "document_id": str(document_id),
                         "user_id": str(user_id),
                         "chunk_index": i + j,
+                        "filename": filename or "",
                         "text": chunk
                     }
                 ))
@@ -217,7 +216,8 @@ class VectorDBService:
                 "metadata": {
                     "document_id": hit.payload.get("document_id"),
                     "user_id": hit.payload.get("user_id"),
-                    "chunk_index": hit.payload.get("chunk_index")
+                    "chunk_index": hit.payload.get("chunk_index"),
+                    "filename": hit.payload.get("filename", "")
                 },
                 "score": hit.score
             })
@@ -321,7 +321,8 @@ class VectorDBService:
                 "metadata": {
                     "document_id": p.payload.get("document_id"),
                     "user_id": p.payload.get("user_id"),
-                    "chunk_index": p.payload.get("chunk_index")
+                    "chunk_index": p.payload.get("chunk_index"),
+                    "filename": p.payload.get("filename", "")
                 },
                 "score": 1.0
             }

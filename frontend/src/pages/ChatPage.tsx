@@ -120,13 +120,9 @@ export function ChatPage() {
     e.preventDefault();
     if (!input.trim() || loading || streaming) return;
 
-    let userMsg = input.trim();
-    if (reasoningMode === 'deep') {
-      userMsg = `[Deep Synthesis Mode]: Provide a thorough, structured breakdown with step-by-step reasoning and citations. ${userMsg}`;
-    }
-
+    const rawInput = input.trim();
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: input.trim() }]);
+    setMessages(prev => [...prev, { role: 'user', content: rawInput }]);
 
     setStreaming(true);
     setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
@@ -135,7 +131,7 @@ export function ChatPage() {
       let targetSessionId = id;
 
       if (id === 'new') {
-        const title = input.trim().length > 30 ? input.trim().substring(0, 30) + '...' : input.trim();
+        const title = rawInput.length > 30 ? rawInput.substring(0, 30) + '...' : rawInput;
         const createRes = await api.post('/chat/sessions', { title });
         targetSessionId = createRes.data?.data?.id;
       }
@@ -143,7 +139,7 @@ export function ChatPage() {
       const token = localStorage.getItem('token');
       
       const payload: any = { 
-        content: userMsg,
+        content: rawInput,
         reasoning_mode: reasoningMode
       };
       if (selectedDocs.length > 0) {
@@ -618,22 +614,61 @@ export function ChatPage() {
               </button>
             </div>
 
+            {/* Active Scope Indicator Badge */}
+            {selectedDocs.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.3)', padding: '0.3rem 0.65rem', borderRadius: '8px', fontSize: '0.75rem', color: '#c7d2fe', width: 'fit-content' }}>
+                <span>🎯 Scoping to:</span>
+                <strong style={{ color: '#fff' }}>
+                  {selectedDocs.length === 1 
+                    ? (documents.find(d => d.id === selectedDocs[0])?.filename || 'Selected Document')
+                    : `${selectedDocs.length} Documents Selected`}
+                </strong>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDocs([])}
+                  style={{ background: 'transparent', border: 'none', color: '#a5b4fc', cursor: 'pointer', padding: '0 2px', fontSize: '0.8rem', marginLeft: '4px' }}
+                  title="Remove document filter to query entire knowledge vault"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             {/* Document Filter Pills */}
             {documents.length > 0 && (
-              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.7rem', color: '#64748b', marginRight: '0.25rem' }}>Filter Scope:</span>
-                {documents.slice(0, 5).map(doc => (
+              <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', alignItems: 'center', paddingBottom: '2px' }} className="custom-scrollbar touch-scroll">
+                <span style={{ fontSize: '0.7rem', color: '#64748b', marginRight: '0.25rem', whiteSpace: 'nowrap', flexShrink: 0 }}>Filter Scope:</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDocs([])}
+                  style={{
+                    padding: '0.15rem 0.55rem',
+                    borderRadius: '6px',
+                    fontSize: '0.7rem',
+                    background: selectedDocs.length === 0 ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255,255,255,0.03)',
+                    border: selectedDocs.length === 0 ? '1px solid #6366f1' : '1px solid rgba(255,255,255,0.06)',
+                    color: selectedDocs.length === 0 ? '#fff' : '#94a3b8',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
+                  }}
+                >
+                  🌐 Entire Vault
+                </button>
+                {documents.map(doc => (
                   <label key={doc.id} style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
                     gap: '0.3rem', 
                     fontSize: '0.7rem', 
-                    background: selectedDocs.includes(doc.id) ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255,255,255,0.03)', 
+                    background: selectedDocs.includes(doc.id) ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255,255,255,0.03)', 
                     border: selectedDocs.includes(doc.id) ? '1px solid #6366f1' : '1px solid rgba(255,255,255,0.06)',
                     padding: '0.15rem 0.55rem', 
                     borderRadius: '6px', 
                     cursor: 'pointer',
-                    color: selectedDocs.includes(doc.id) ? '#f8fafc' : '#94a3b8'
+                    color: selectedDocs.includes(doc.id) ? '#f8fafc' : '#94a3b8',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
                   }}>
                     <input 
                       type="checkbox" 
@@ -644,7 +679,7 @@ export function ChatPage() {
                       }}
                       style={{ display: 'none' }}
                     />
-                    {doc.filename}
+                    <span>{selectedDocs.includes(doc.id) ? '✓ ' : '📄 '}{doc.filename}</span>
                   </label>
                 ))}
               </div>
